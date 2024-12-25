@@ -1,0 +1,102 @@
+:root {
+  --minecraft-dirt: #593b2c;
+  --minecraft-grass: #3b8526;
+  --minecraft-stone: #848484;
+  --minecraft-wood: #977647;
+  --minecraft-online: #3eaa5f;
+  --minecraft-offline: #dc3545;
+  background-color: #242424;
+}
+html,
+body,
+#root {
+  height: 100%;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background-image: url("https://cdnjs.cloudflare.com/ajax/libs/minecraft-images/1.0.0/background.png");
+  background-repeat: repeat;
+  font-family: "Minecraft", sans-serif;
+}
+
+.minecraft-btn {
+  font-family: "Minecraft", sans-serif;
+  background-color: var(--minecraft-stone) !important;
+  border: 3px solid #000 !important;
+  color: white;
+  text-shadow: 2px 2px #000;
+  transition: all 0.2s;
+  position: relative;
+}
+
+.minecraft-btn-delete {
+  color: var(--minecraft-offline) !important;
+  transition: all 0.2s;
+  position: relative;
+}
+
+.minecraft-btn-delete:hover {
+  color: white !important;
+  background-color: var(--minecraft-offline) !important;
+  transform: translateY(-2px);
+}
+
+.minecraft-btn:hover {
+  background-color: var(--minecraft-grass) !important;
+  transform: translateY(-1px);
+}
+
+.minecraft-btn:active {
+  box-shadow: 2px 2px 0 rgba(0, 0, 0, 0.5) !important;
+  transform: translate(2px, 2px) !important;
+}
+
+.minecraft-card {
+  background-color: rgba(0, 0, 0, 0.8) !important;
+  border: 3px solid var(--minecraft-dirt) !important;
+  color: white !important;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.minecraft-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+}
+
+.minecraft-card.online {
+  border-color: var(--minecraft-online) !important;
+  box-shadow: 0 0 15px rgba(62, 170, 95, 0.3);
+}
+
+.minecraft-card.offline {
+  border-color: var(--minecraft-offline) !important;
+  opacity: 0.9;
+}
+
+.MuiSwitch-root.online .MuiSwitch-track {
+  background-color: var(--minecraft-online) !important;
+}
+
+.MuiSwitch-root.offline .MuiSwitch-track {
+  background-color: var(--minecraft-offline) !important;
+}
+
+.MuiTab-root {
+  font-family: "Minecraft", sans-serif !important;
+  text-shadow: 1px 1px #000 !important;
+}
+
+.MuiAlert-root {
+  font-family: "Minecraft", sans-serif !important;
+}
+
+.MuiSwitch-root.online .MuiSwitch-track {
+  background-color: var(--minecraft-online) !important;
+}
+
+.MuiSwitch-root.offline .MuiSwitch-track {
+  background-color: var(--minecraft-offline) !important;
+}

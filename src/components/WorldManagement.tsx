@@ -9,9 +9,7 @@ import {
   ListItem,
   ListItemText,
   ListItemSecondaryAction,
-  TextField,
   Alert,
-  Button,
   Snackbar,
   CircularProgress,
 } from "@mui/material";
@@ -19,8 +17,9 @@ import { useParams } from "react-router-dom";
 import axios from "axios";
 import { MinecraftWorld, Player } from "../types";
 import { DatapackManagement } from "./DatapacKManagement";
-import { Server } from "http";
 import { ServerPropertiesManagement } from "./ServerPropertiesManagement";
+import { ServerControlPanel } from "./ServerControlManagement";
+import { PlayerManagement } from "./PlayerManagement";
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -51,7 +50,6 @@ const TabPanel = (props: TabPanelProps) => {
             bottom: 0,
             left: 0,
             right: 0,
-            overflowY: "auto",
             overflowX: "hidden",
           }}
         >
@@ -140,12 +138,20 @@ export const WorldManagement = () => {
     setPlayers(response.data);
   };
 
-  const handlePropertyChange = async (key: string, value: string) => {
+  const handlePropertyChange = async (properties: Record<string, string>) => {
+    console.log("Updating properties:", properties);
     await axios.put(
-      `${import.meta.env.VITE_API_URL}/worlds/${worldId}/properties`,
-      { [key]: value }
+      `${
+        import.meta.env.VITE_API_URL
+      }/api/minecraft/worlds/${worldId}/properties`,
+      { properties }
     );
-    setProperties((prev) => ({ ...prev, [key]: value }));
+    const response = await axios.get(
+      `${
+        import.meta.env.VITE_API_URL
+      }/api/minecraft/worlds/${worldId}/properties`
+    );
+    setProperties(response.data);
   };
 
   return (
@@ -182,61 +188,21 @@ export const WorldManagement = () => {
           <Tab label="Datapacks" />
         </Tabs>
       </Box>
-
       <TabPanel value={value} index={0}>
-        <Typography variant="h6" sx={{ mb: 4 }}>
-          Server Status
-        </Typography>
-        <Box
-          sx={{
-            mt: 2,
-            display: "flex",
-            alignItems: "center",
-            gap: 2,
-          }}
-        >
-          <Switch
-            checked={world?.isActive || false}
-            onChange={handleServerToggle}
-            disabled={isToggling}
-            className={world?.isActive ? "online" : "offline"}
-          />
-          <Typography component="span" sx={{ ml: 1 }}>
-            {world?.isActive ? "Online" : "Offline"}
-          </Typography>
-          {isToggling && <CircularProgress size={24} />}
-        </Box>
+        <ServerControlPanel
+          worldId={worldId!}
+          isActive={world?.isActive || false}
+          isToggling={isToggling}
+          onToggleServer={handleServerToggle}
+        />
       </TabPanel>
-
       <TabPanel value={value} index={1}>
-        <List>
-          {players.map((player) => (
-            <ListItem key={player.username}>
-              <ListItemText
-                primary={player.username}
-                secondary={player.isOnline ? "Online" : "Offline"}
-              />
-              <ListItemSecondaryAction>
-                <Switch
-                  checked={player.isWhitelisted}
-                  onChange={() =>
-                    handlePlayerListChange(player.username, "whitelist")
-                  }
-                  color="primary"
-                />
-                <Switch
-                  checked={player.isBlacklisted}
-                  onChange={() =>
-                    handlePlayerListChange(player.username, "blacklist")
-                  }
-                  color="error"
-                />
-              </ListItemSecondaryAction>
-            </ListItem>
-          ))}
-        </List>
+        <PlayerManagement
+          worldId={worldId!}
+          players={players}
+          onPlayerChange={handlePlayerListChange}
+        />
       </TabPanel>
-
       <TabPanel value={value} index={2}>
         <ServerPropertiesManagement
           worldId={worldId!}

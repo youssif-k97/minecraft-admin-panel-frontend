@@ -13,3 +13,12 @@ export interface Player {
   isWhitelisted: boolean;
   isBlacklisted: boolean;
 }
+
+export interface ServerProperty {
+  key: string;
+  value: string;
+  type: "boolean" | "text" | "number" | "select";
+  options?: string[];
+  important?: boolean;
+  label?: string;
+}

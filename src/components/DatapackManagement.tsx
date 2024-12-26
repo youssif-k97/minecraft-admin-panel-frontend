@@ -5,7 +5,6 @@ import {
   List,
   ListItem,
   ListItemText,
-  ListItemSecondaryAction,
   IconButton,
   Button,
   Dialog,
@@ -158,14 +157,7 @@ export const DatapackManagement: React.FC<DatapackManagementProps> = ({
             key={datapack.name}
             className="minecraft-card"
             sx={{ mb: 1 }}
-          >
-            <ListItemText
-              primary={datapack.name}
-              secondary={`Uploaded: ${new Date(
-                datapack.uploadDate
-              ).toLocaleDateString()}`}
-            />
-            <ListItemSecondaryAction>
+            secondaryAction={
               <IconButton
                 edge="end"
                 onClick={() => handleDeleteDialog(datapack.name)}
@@ -173,7 +165,14 @@ export const DatapackManagement: React.FC<DatapackManagementProps> = ({
               >
                 <Delete />
               </IconButton>
-            </ListItemSecondaryAction>
+            }
+          >
+            <ListItemText
+              primary={datapack.name}
+              secondary={`Uploaded: ${new Date(
+                datapack.uploadDate
+              ).toLocaleDateString()}`}
+            />
           </ListItem>
         ))}
       </List>

@@ -5,6 +5,11 @@ export interface MinecraftWorld {
   players?: string[];
   properties?: Record<string, string>;
   customProperties?: Record<string, string>;
+  port: number;
+  ram: {
+    min: number;
+    max: number;
+  };
 }
 
 export interface Player {

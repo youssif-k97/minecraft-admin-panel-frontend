@@ -55,7 +55,7 @@ body {
 }
 
 .minecraft-card {
-  background-color: rgba(0, 0, 0, 0.8) !important;
+  background-color: rgba(0, 0, 0, 1) !important;
   border: 3px solid var(--minecraft-dirt) !important;
   color: white !important;
   transition: transform 0.2s, box-shadow 0.2s;

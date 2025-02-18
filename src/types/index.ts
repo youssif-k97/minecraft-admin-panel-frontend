@@ -4,7 +4,6 @@ export interface MinecraftWorld {
   isActive: boolean;
   players?: string[];
   properties?: Record<string, string>;
-  customProperties?: Record<string, string>;
   port: number;
   ram: {
     min: number;
@@ -12,6 +11,24 @@ export interface MinecraftWorld {
   };
 }
 
+export interface WorldConfig {
+  worldName: string;
+  serverVersion: string;
+  port: number;
+  minMemory: number;
+  maxMemory: number;
+  createdAt: string;
+  lastStarted: string;
+  lastBackup: string;
+}
+
+export interface MinecraftVersion {
+  id: string;
+  type: string;
+  url: string;
+  time: string;
+  releaseTime: string;
+}
 export interface Player {
   username: string;
   isOnline: boolean;

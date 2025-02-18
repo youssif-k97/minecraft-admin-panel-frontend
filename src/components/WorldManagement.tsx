@@ -13,7 +13,7 @@ import {
 import { useNavigate, useParams } from "react-router-dom";
 import axios from "axios";
 import { MinecraftWorld, Player } from "../types";
-import { DatapackManagement } from "./DatapacKManagement";
+import { DatapackManagement } from "./DatapackManagement";
 import { ServerPropertiesManagement } from "./ServerPropertiesManagement";
 import { ServerControlPanel } from "./ServerControlManagement";
 import { PlayerManagement } from "./PlayerManagement";

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import Grid from "@mui/material/Grid2";
 import {
   Box,
@@ -26,6 +26,7 @@ import {
   Save,
   Settings,
   Storage,
+  Terminal,
 } from "@mui/icons-material";
 
 interface ServerControlPanelProps {
@@ -43,6 +44,14 @@ interface ServerControlPanelProps {
   onRamChange: (ram: { min: number; max: number }) => Promise<void>;
   onDownloadWorld: () => Promise<void>;
   onBackupWorld: () => Promise<void>;
+}
+
+interface LogMessage {
+  timestamp: string;
+  level: "INFO" | "WARN" | "ERROR";
+  source: string;
+  message: string;
+  raw: string;
 }
 
 export const ServerControlPanel: React.FC<ServerControlPanelProps> = ({
@@ -64,6 +73,112 @@ export const ServerControlPanel: React.FC<ServerControlPanelProps> = ({
   const [newRam, setNewRam] = useState(currentRam);
   const [loading, setLoading] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [logs, setLogs] = useState<LogMessage[]>([]);
+  const [wsStatus, setWsStatus] = useState<
+    "connecting" | "connected" | "disconnected"
+  >("disconnected");
+
+  const wsRef = useRef<WebSocket | null>(null);
+  const logsEndRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (isActive && !wsRef.current) {
+      connectWebSocket();
+    }
+
+    return () => {
+      if (wsRef.current) {
+        wsRef.current.close();
+        wsRef.current = null;
+      }
+    };
+  }, [isActive, worldId]);
+
+  useEffect(() => {
+    // Scroll to bottom when new logs arrive
+    logsEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [logs]);
+
+  const connectWebSocket = () => {
+    const wsUrl = `${import.meta.env.VITE_AGENT_URL.replace(
+      "http",
+      "ws"
+    )}/ws/logs/${worldId}`;
+    console.log("Connecting to WebSocket:", wsUrl);
+    setWsStatus("connecting");
+
+    const ws = new WebSocket(wsUrl);
+    wsRef.current = ws;
+
+    ws.onopen = () => {
+      setWsStatus("connected");
+      setError(null);
+    };
+
+    ws.onmessage = (event) => {
+      const rawLog = event.data;
+      const parsedLog = parseLogMessage(rawLog);
+
+      if (parsedLog) {
+        setLogs((prev) => [...prev, parsedLog].slice(-500)); // Keep last 500 messages
+      } else {
+        // Handle unparseable logs by creating a basic INFO message
+        const basicLog: LogMessage = {
+          timestamp: new Date().toLocaleTimeString(),
+          source: "Unknown",
+          level: "INFO",
+          message: rawLog,
+          raw: rawLog,
+        };
+        setLogs((prev) => [...prev, basicLog].slice(-500));
+      }
+    };
+
+    ws.onclose = () => {
+      setWsStatus("disconnected");
+      wsRef.current = null;
+      // Attempt to reconnect after 5 seconds if server is still active
+      if (isActive) {
+        setTimeout(connectWebSocket, 5000);
+      }
+    };
+
+    ws.onerror = (err) => {
+      setError("WebSocket connection error. Retrying...");
+      ws.close();
+    };
+  };
+
+  const getLogColor = (level: LogMessage["level"]) => {
+    switch (level) {
+      case "ERROR":
+        return "text-red-500";
+      case "WARN":
+        return "text-yellow-500";
+      default:
+        return "text-gray-200";
+    }
+  };
+
+  const parseLogMessage = (rawLog: string): LogMessage | null => {
+    // Minecraft log format: [HH:mm:ss] [Source/LEVEL]: Message
+    const logRegex = /\[([\d:]+)\] \[([^\/]+)\/([^\]]+)\]: (.+)/;
+    const match = rawLog.match(logRegex);
+
+    if (!match) {
+      return null;
+    }
+
+    const [, timestamp, source, level, message] = match;
+
+    return {
+      timestamp,
+      source,
+      level: level as LogMessage["level"],
+      message,
+      raw: rawLog,
+    };
+  };
 
   const handleAction = async (
     action: () => Promise<void>,
@@ -116,17 +231,6 @@ export const ServerControlPanel: React.FC<ServerControlPanelProps> = ({
             />
             <CardContent>
               <Grid container spacing={2}>
-                <Grid size={{ xs: 12 }}>
-                  <Typography
-                    color={
-                      isActive
-                        ? "var(--minecraft-online)"
-                        : "var(--minecraft-offline)"
-                    }
-                  >
-                    Status: {isActive ? "Online" : "Offline"}
-                  </Typography>
-                </Grid>
                 <Grid size={{ xs: 12 }}>
                   <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
                     <Storage />
@@ -209,6 +313,51 @@ export const ServerControlPanel: React.FC<ServerControlPanelProps> = ({
                   </Button>
                 </Grid>
               </Grid>
+            </CardContent>
+          </Card>
+        </Grid>
+        {/* Server Logs Card */}
+        <Grid size={{ xs: 12 }}>
+          <Card className="minecraft-card">
+            <CardHeader
+              title="Server Logs"
+              action={
+                <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                  <Typography
+                    variant="body2"
+                    color={
+                      wsStatus === "connected" ? "success.main" : "error.main"
+                    }
+                  >
+                    {wsStatus === "connected"
+                      ? "Connected"
+                      : wsStatus === "connecting"
+                      ? "Connecting..."
+                      : "Disconnected"}
+                  </Typography>
+                  <Terminal />
+                </Box>
+              }
+            />
+            <CardContent>
+              <Box
+                className="bg-gray-900 p-4 rounded-md"
+                sx={{
+                  height: "400px",
+                  overflowY: "auto",
+                  fontFamily: "monospace",
+                }}
+              >
+                {logs.map((log, index) => (
+                  <div key={index} className={`${getLogColor(log.level)} mb-1`}>
+                    <span className="text-gray-500">[{log.timestamp}]</span>{" "}
+                    <span className="text-blue-400">[{log.source}]</span>{" "}
+                    <span className="font-bold">[{log.level}]</span>{" "}
+                    {log.message}
+                  </div>
+                ))}
+                <div ref={logsEndRef} />
+              </Box>
             </CardContent>
           </Card>
         </Grid>

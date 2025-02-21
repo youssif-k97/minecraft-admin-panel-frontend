@@ -20,6 +20,10 @@ import { PlayerManagement } from "./PlayerManagement";
 import { TabPanel } from "./TabPanel";
 import { ArrowBack } from "@mui/icons-material";
 
+const MB_TO_GB = 1024;
+const convertMBtoGB = (mb: number) => Math.round((mb / MB_TO_GB) * 2) / 2; // Round to nearest 0.5
+const convertGBtoMB = (gb: number) => Math.round(gb * MB_TO_GB);
+
 export const WorldManagement = () => {
   const { worldId } = useParams<{ worldId: string }>();
   const [value, setValue] = useState(0);
@@ -234,12 +238,22 @@ export const WorldManagement = () => {
             worldId={worldId!}
             isActive={world?.isActive || false}
             currentPort={world?.port || 25565}
-            currentRam={world?.ram || { min: 2, max: 4 }}
+            currentRam={{
+              min: convertMBtoGB(world?.ram?.min || 2), // Convert MB to GB
+              max: convertMBtoGB(world?.ram?.max || 4),
+            }}
             systemRam={16} // You might want to fetch this from your agent
             onToggleServer={handleServerToggle}
             onRestartServer={handleRestartServer}
             onPortChange={handlePortChange}
-            onRamChange={handleRamChange}
+            onRamChange={async (ramGB) => {
+              // Convert GB back to MB when sending to server
+              const ramMB = {
+                min: convertGBtoMB(ramGB.min),
+                max: convertGBtoMB(ramGB.max),
+              };
+              await handleRamChange(ramMB);
+            }}
             onDownloadWorld={handleDownloadWorld}
             onBackupWorld={handleBackupWorld}
           />

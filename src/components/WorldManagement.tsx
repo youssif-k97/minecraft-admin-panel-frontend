@@ -60,7 +60,9 @@ export const WorldManagement = () => {
       await axios.post(
         `${
           import.meta.env.VITE_API_URL
-        }/api/minecraft/worlds/${worldId}/${action}`
+        }/api/minecraft/worlds/${worldId}/${action}`,
+        {},
+        { timeout: 120000 }
       );
       setAlert({
         show: true,
@@ -89,7 +91,7 @@ export const WorldManagement = () => {
   };
 
   const handlePortChange = async (newPort: number) => {
-    await axios.put(
+    await axios.post(
       `${import.meta.env.VITE_API_URL}/api/minecraft/worlds/${worldId}/port`,
       {
         port: newPort,
@@ -99,7 +101,7 @@ export const WorldManagement = () => {
   };
 
   const handleRamChange = async (ram: { min: number; max: number }) => {
-    await axios.put(
+    await axios.post(
       `${import.meta.env.VITE_API_URL}/api/minecraft/worlds/${worldId}/ram`,
       ram
     );

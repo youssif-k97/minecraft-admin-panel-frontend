@@ -82,6 +82,7 @@ export const ServerControlPanel: React.FC<ServerControlPanelProps> = ({
   const logsEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    console.log(newRam);
     if (isActive && !wsRef.current) {
       connectWebSocket();
     }
@@ -343,7 +344,7 @@ export const ServerControlPanel: React.FC<ServerControlPanelProps> = ({
               <Box
                 className="bg-gray-900 p-4 rounded-md"
                 sx={{
-                  height: "400px",
+                  height: "300px",
                   overflowY: "auto",
                   fontFamily: "monospace",
                 }}
@@ -390,13 +391,13 @@ export const ServerControlPanel: React.FC<ServerControlPanelProps> = ({
           <Box sx={{ mt: 2 }}>
             <Typography gutterBottom>Minimum RAM (GB)</Typography>
             <Slider
-              value={newRam.min}
+              value={newRam.min || 1}
               onChange={(_, value) =>
                 setNewRam((prev) => ({ ...prev, min: value as number }))
               }
               step={0.5}
               min={1}
-              max={Math.min(newRam.max, systemRam)}
+              max={Math.min(newRam.max || 1.5, systemRam)}
               marks
               valueLabelDisplay="auto"
               valueLabelFormat={formatRam}
@@ -405,7 +406,7 @@ export const ServerControlPanel: React.FC<ServerControlPanelProps> = ({
               Maximum RAM (GB)
             </Typography>
             <Slider
-              value={newRam.max}
+              value={newRam.max || 1.5}
               onChange={(_, value) =>
                 setNewRam((prev) => ({ ...prev, max: value as number }))
               }

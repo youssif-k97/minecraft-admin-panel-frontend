@@ -116,15 +116,25 @@ export const WorldManagement = () => {
   };
 
   const handleDownloadWorld = async () => {
-    const response = await axios.get(
+    const { data: uploadData } = await axios.post(
+      `${
+        import.meta.env.VITE_API_URL
+      }/api/minecraft/worlds/${worldId}/datapacks/upload-url`,
+      {
+        name: worldId,
+        type: "download",
+      }
+    );
+    console.log(uploadData);
+    const response = await axios.post(
       `${
         import.meta.env.VITE_API_URL
       }/api/minecraft/worlds/${worldId}/download`,
-      { responseType: "blob" }
+      { uploadUrl: uploadData.uploadUrl, key: uploadData.key }
     );
-
+    console.log(response);
     // Create download link
-    const url = window.URL.createObjectURL(new Blob([response.data]));
+    const url = response.data.url;
     const link = document.createElement("a");
     link.href = url;
     link.setAttribute("download", `${world?.name || worldId}.zip`);

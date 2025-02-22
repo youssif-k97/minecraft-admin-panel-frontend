@@ -20,6 +20,7 @@ import {
 } from "@mui/icons-material";
 import axios from "axios";
 import { MinecraftWorld } from "../types";
+import { IconBrandMinecraft } from "@tabler/icons-react";
 
 export const NavPanel = () => {
   const [open, setOpen] = useState(false);
@@ -197,7 +198,7 @@ export const NavPanel = () => {
               justifyContent: "center",
             }}
           >
-            <Grass />
+            <IconBrandMinecraft style={{ width: 24, height: 24 }} />
           </ListItemIcon>
           <ListItemText
             primary="Worlds"

@@ -75,6 +75,7 @@ export const DatapackManagement: React.FC<DatapackManagementProps> = ({
         }/api/minecraft/worlds/${worldId}/datapacks/upload-url`,
         {
           name: selectedFile.name,
+          type: "datapacks",
         }
       );
       console.log("Upload data:", uploadData);

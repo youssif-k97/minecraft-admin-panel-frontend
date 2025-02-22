@@ -82,8 +82,7 @@ export const ServerControlPanel: React.FC<ServerControlPanelProps> = ({
   const logsEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    console.log(newRam);
-    if (isActive && !wsRef.current) {
+    if (!wsRef.current) {
       connectWebSocket();
     }
 
@@ -101,11 +100,14 @@ export const ServerControlPanel: React.FC<ServerControlPanelProps> = ({
   }, [logs]);
 
   const connectWebSocket = () => {
+    if (wsRef.current) {
+      wsRef.current.close();
+      wsRef.current = null;
+    }
     const wsUrl = `${import.meta.env.VITE_AGENT_URL.replace(
       "http",
       "ws"
     )}/ws/logs/${worldId}`;
-    console.log("Connecting to WebSocket:", wsUrl);
     setWsStatus("connecting");
 
     const ws = new WebSocket(wsUrl);
@@ -121,7 +123,17 @@ export const ServerControlPanel: React.FC<ServerControlPanelProps> = ({
       const parsedLog = parseLogMessage(rawLog);
 
       if (parsedLog) {
-        setLogs((prev) => [...prev, parsedLog].slice(-500)); // Keep last 500 messages
+        setLogs((prev) => {
+          const isDuplicate = prev.some(
+            (existingLog) => existingLog.raw === rawLog
+          );
+
+          if (isDuplicate) {
+            return prev;
+          }
+
+          return [...prev, parsedLog].slice(-500); // Keep last 500 messages
+        });
       } else {
         // Handle unparseable logs by creating a basic INFO message
         const basicLog: LogMessage = {
@@ -131,7 +143,17 @@ export const ServerControlPanel: React.FC<ServerControlPanelProps> = ({
           message: rawLog,
           raw: rawLog,
         };
-        setLogs((prev) => [...prev, basicLog].slice(-500));
+        setLogs((prev) => {
+          const isDuplicate = prev.some(
+            (existingLog) => existingLog.raw === rawLog
+          );
+
+          if (isDuplicate) {
+            return prev;
+          }
+
+          return [...prev, basicLog].slice(-500);
+        });
       }
     };
 
@@ -272,7 +294,7 @@ export const ServerControlPanel: React.FC<ServerControlPanelProps> = ({
           <Card className="minecraft-card">
             <CardHeader title="Quick Actions" />
             <CardContent>
-              <Grid container spacing={2}>
+              <Grid container spacing={0.5}>
                 <Grid size={{ xs: 12 }}>
                   <Button
                     fullWidth
@@ -318,7 +340,12 @@ export const ServerControlPanel: React.FC<ServerControlPanelProps> = ({
           </Card>
         </Grid>
         {/* Server Logs Card */}
-        <Grid size={{ xs: 12 }}>
+        <Grid
+          size={{ xs: 12 }}
+          sx={{
+            height: "calc(75% - 8px)",
+          }}
+        >
           <Card className="minecraft-card">
             <CardHeader
               title="Server Logs"

@@ -174,34 +174,6 @@ export const WorldManagement = () => {
 
   return (
     <Box sx={{ height: "100vh", padding: "20px" }}>
-      <AppBar
-        position="static"
-        color="transparent"
-        sx={{
-          // bgcolor: "rgba(0, 0, 0, 0.8)",
-          boxShadow: "none",
-          borderBottom: "1px solid rgba(255, 255, 255, 0.12)",
-        }}
-      >
-        <Toolbar>
-          <Button
-            startIcon={<ArrowBack />}
-            onClick={() => navigate("/")}
-            sx={{
-              color: "white",
-              "&:hover": {
-                bgcolor: "rgba(255, 255, 255, 0.08)",
-              },
-            }}
-            className="minecraft-btn"
-          >
-            Back to Worlds
-          </Button>
-          <Typography variant="h6" sx={{ ml: 2 }}>
-            {world?.name || "World Management"}
-          </Typography>
-        </Toolbar>
-      </AppBar>
       <Box
         sx={{
           width: "75%",

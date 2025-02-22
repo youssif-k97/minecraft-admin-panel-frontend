@@ -37,8 +37,6 @@ export const WorldList = () => {
     <Box
       sx={{
         flexGrow: 1,
-        width: "100%",
-        minHeight: "100vh",
         p: 4,
       }}
     >

@@ -29,11 +29,6 @@ export const PlayerManagement: React.FC<PlayerManagementProps> = ({
                   onChange={() => onPlayerChange(player.username, "whitelist")}
                   color="primary"
                 />
-                <Switch
-                  checked={player.isBlacklisted}
-                  onChange={() => onPlayerChange(player.username, "blacklist")}
-                  color="error"
-                />
               </Box>
             }
           >

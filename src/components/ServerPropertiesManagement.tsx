@@ -16,63 +16,12 @@ import {
   Switch,
   TextField,
   Typography,
+  Tooltip,
+  IconButton,
 } from "@mui/material";
+import InfoIcon from "@mui/icons-material/Info";
 import { ServerProperty } from "../types";
-
-const PROPERTY_DEFINITIONS: Record<string, Partial<ServerProperty>> = {
-  difficulty: {
-    type: "select",
-    options: ["peaceful", "easy", "normal", "hard"],
-    important: true,
-    label: "Difficulty",
-  },
-  gamemode: {
-    type: "select",
-    options: ["survival", "creative", "adventure", "spectator"],
-    important: true,
-    label: "Game Mode",
-  },
-  pvp: {
-    type: "boolean",
-    important: true,
-    label: "PvP Enabled",
-  },
-  "max-players": {
-    type: "number",
-    important: true,
-    label: "Max Players",
-  },
-  "spawn-protection": {
-    type: "number",
-    important: true,
-    label: "Spawn Protection Radius",
-  },
-  "allow-nether": {
-    type: "boolean",
-    important: true,
-    label: "Allow Nether",
-  },
-  "spawn-monsters": {
-    type: "boolean",
-    important: true,
-    label: "Spawn Monsters",
-  },
-  "spawn-animals": {
-    type: "boolean",
-    important: true,
-    label: "Spawn Animals",
-  },
-  motd: {
-    type: "text",
-    important: true,
-    label: "Message of the Day",
-  },
-  "level-name": {
-    type: "text",
-    important: true,
-    label: "Level Name",
-  },
-};
+import { SERVER_PROPERTY_DEFINITIONS } from "../config/serverPropertyDefinitions";
 
 interface ServerPropertiesManagementProps {
   worldId: string;
@@ -95,7 +44,7 @@ export const ServerPropertiesManagement: React.FC<
       key,
       value,
       type: "text" as const,
-      ...(PROPERTY_DEFINITIONS[key] || {}),
+      ...(SERVER_PROPERTY_DEFINITIONS[key] || {}),
     }));
 
     return {
@@ -129,65 +78,84 @@ export const ServerPropertiesManagement: React.FC<
   const renderPropertyInput = (property: ServerProperty) => {
     const currentValue = modifiedProperties[property.key] ?? property.value;
 
-    switch (property.type) {
-      case "boolean":
-        return (
-          <FormControlLabel
-            control={
-              <Switch
-                checked={currentValue === "true"}
-                onChange={(e) =>
-                  handlePropertyChange(property.key, String(e.target.checked))
-                }
-              />
-            }
-            label={property.label || property.key}
-          />
-        );
+    const inputElement = (() => {
+      switch (property.type) {
+        case "boolean":
+          return (
+            <FormControlLabel
+              control={
+                <Switch
+                  checked={currentValue === "true"}
+                  onChange={(e) =>
+                    handlePropertyChange(property.key, String(e.target.checked))
+                  }
+                />
+              }
+              label={property.label || property.key}
+            />
+          );
 
-      case "select":
-        return (
-          <FormControl fullWidth variant="outlined">
-            <InputLabel>{property.label || property.key}</InputLabel>
-            <Select
+        case "select":
+          return (
+            <FormControl fullWidth variant="outlined">
+              <InputLabel>{property.label || property.key}</InputLabel>
+              <Select
+                value={currentValue}
+                onChange={(e) =>
+                  handlePropertyChange(property.key, e.target.value)
+                }
+                label={property.label || property.key}
+              >
+                {property.options?.map((option) => (
+                  <MenuItem key={option} value={option}>
+                    {option.charAt(0).toUpperCase() + option.slice(1)}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          );
+
+        case "number":
+          return (
+            <TextField
+              fullWidth
+              type="number"
+              label={property.label || property.key}
               value={currentValue}
               onChange={(e) =>
                 handlePropertyChange(property.key, e.target.value)
               }
+              variant="outlined"
+            />
+          );
+
+        default:
+          return (
+            <TextField
+              fullWidth
               label={property.label || property.key}
-            >
-              {property.options?.map((option) => (
-                <MenuItem key={option} value={option}>
-                  {option.charAt(0).toUpperCase() + option.slice(1)}
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-        );
+              value={currentValue}
+              onChange={(e) =>
+                handlePropertyChange(property.key, e.target.value)
+              }
+              variant="outlined"
+            />
+          );
+      }
+    })();
 
-      case "number":
-        return (
-          <TextField
-            fullWidth
-            type="number"
-            label={property.label || property.key}
-            value={currentValue}
-            onChange={(e) => handlePropertyChange(property.key, e.target.value)}
-            variant="outlined"
-          />
-        );
-
-      default:
-        return (
-          <TextField
-            fullWidth
-            label={property.label || property.key}
-            value={currentValue}
-            onChange={(e) => handlePropertyChange(property.key, e.target.value)}
-            variant="outlined"
-          />
-        );
-    }
+    return (
+      <Box sx={{ display: "flex", alignItems: "center", width: "100%" }}>
+        <Box sx={{ flexGrow: 1 }}>{inputElement}</Box>
+        {property.description && (
+          <Tooltip title={property.description} arrow placement="right">
+            <IconButton size="small" sx={{ ml: 1 }}>
+              <InfoIcon fontSize="small" color="info" />
+            </IconButton>
+          </Tooltip>
+        )}
+      </Box>
+    );
   };
 
   return (
@@ -261,7 +229,7 @@ export const ServerPropertiesManagement: React.FC<
           <Box sx={{ mt: 2 }}>
             {Object.entries(modifiedProperties).map(([key, value]) => (
               <Typography key={key} variant="body2">
-                {PROPERTY_DEFINITIONS[key]?.label || key}: {value}
+                {SERVER_PROPERTY_DEFINITIONS[key]?.label || key}: {value}
               </Typography>
             ))}
           </Box>

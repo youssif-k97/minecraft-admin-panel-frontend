@@ -30,17 +30,26 @@ export interface MinecraftVersion {
   releaseTime: string;
 }
 export interface Player {
+  uuid: string;
   username: string;
+  lastLogin: string;
   isOnline: boolean;
   isWhitelisted: boolean;
-  isBlacklisted: boolean;
+  isBanned: boolean;
+  isOp: boolean;
 }
 
 export interface ServerProperty {
   key: string;
   value: string;
-  type: "boolean" | "text" | "number" | "select";
+  type: "text" | "number" | "boolean" | "select";
   options?: string[];
   important?: boolean;
   label?: string;
+  description?: string;
+}
+
+export interface Datapack {
+  name: string;
+  uploadDate: string;
 }

@@ -23,8 +23,6 @@ import {
   Info,
   Memory,
   Refresh,
-  Save,
-  Settings,
   Storage,
   Terminal,
 } from "@mui/icons-material";

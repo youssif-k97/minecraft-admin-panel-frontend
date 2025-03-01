@@ -1,24 +1,13 @@
 import { useState, useEffect } from "react";
-import {
-  Box,
-  Tabs,
-  Tab,
-  Alert,
-  Snackbar,
-  AppBar,
-  Toolbar,
-  Button,
-  Typography,
-} from "@mui/material";
+import { Box, Tabs, Tab, Alert, Snackbar } from "@mui/material";
 import { useNavigate, useParams } from "react-router-dom";
 import axios from "axios";
-import { MinecraftWorld, Player } from "../types";
+import { Datapack, MinecraftWorld, Player } from "../types";
 import { DatapackManagement } from "./DatapackManagement";
 import { ServerPropertiesManagement } from "./ServerPropertiesManagement";
 import { ServerControlPanel } from "./ServerControlManagement";
 import { PlayerManagement } from "./PlayerManagement";
 import { TabPanel } from "./TabPanel";
-import { ArrowBack } from "@mui/icons-material";
 
 const MB_TO_GB = 1024;
 const convertMBtoGB = (mb: number) => Math.round((mb / MB_TO_GB) * 2) / 2; // Round to nearest 0.5
@@ -29,6 +18,7 @@ export const WorldManagement = () => {
   const [value, setValue] = useState(0);
   const [world, setWorld] = useState<MinecraftWorld | null>(null);
   const [players, setPlayers] = useState<Player[]>([]);
+  const [datapacks, setDatapacks] = useState<Datapack[]>([]);
   const [isToggling, setIsToggling] = useState(false);
   const [properties, setProperties] = useState<Record<string, string>>({});
   const [alert, setAlert] = useState<{
@@ -38,19 +28,42 @@ export const WorldManagement = () => {
   }>({ show: false, message: "", severity: "info" });
   const navigate = useNavigate();
 
-  const fetchData = async () => {
+  const fetchWorlds = async () => {
     const [worldRes] = await Promise.all([
       axios.get(
         `${import.meta.env.VITE_API_URL}/api/minecraft/worlds/${worldId}`
       ),
     ]);
     setWorld(worldRes.data);
-    setPlayers(worldRes.data.players);
-    setProperties(worldRes.data.properties);
+  };
+  const fetchDatapacks = async () => {
+    const response = await axios.get(
+      `${
+        import.meta.env.VITE_API_URL
+      }/api/minecraft/worlds/${worldId}/datapacks`
+    );
+    setDatapacks(response.data.datapacks);
+  };
+  const fetchPlayers = async () => {
+    const response = await axios.get(
+      `${import.meta.env.VITE_API_URL}/api/minecraft/worlds/${worldId}/players`
+    );
+    setPlayers(response.data);
+  };
+  const fetchProperties = async () => {
+    const response = await axios.get(
+      `${
+        import.meta.env.VITE_API_URL
+      }/api/minecraft/worlds/${worldId}/properties`
+    );
+    setProperties(response.data);
   };
 
   useEffect(() => {
-    fetchData();
+    fetchWorlds();
+    fetchDatapacks();
+    fetchPlayers();
+    fetchProperties();
   }, [worldId]);
 
   const handleServerToggle = async () => {
@@ -97,7 +110,7 @@ export const WorldManagement = () => {
         port: newPort,
       }
     );
-    await fetchData();
+    await fetchWorlds();
   };
 
   const handleRamChange = async (ram: { min: number; max: number }) => {
@@ -105,14 +118,14 @@ export const WorldManagement = () => {
       `${import.meta.env.VITE_API_URL}/api/minecraft/worlds/${worldId}/ram`,
       ram
     );
-    await fetchData();
+    await fetchWorlds();
   };
 
   const handleRestartServer = async () => {
     await axios.post(
       `${import.meta.env.VITE_API_URL}/api/minecraft/worlds/${worldId}/restart`
     );
-    await fetchData();
+    await fetchWorlds();
   };
 
   const handleDownloadWorld = async () => {
@@ -187,6 +200,7 @@ export const WorldManagement = () => {
       <Box
         sx={{
           width: "75%",
+          height: "98%",
           bgcolor: "rgba(0, 0, 0, 0.8)",
           color: "white",
           justifyContent: "center",
@@ -257,7 +271,11 @@ export const WorldManagement = () => {
           />
         </TabPanel>
         <TabPanel value={value} index={3}>
-          <DatapackManagement worldId={worldId!} />
+          <DatapackManagement
+            worldId={worldId!}
+            datapacks={datapacks}
+            refreshDatapacks={fetchDatapacks}
+          />
         </TabPanel>
         <Snackbar
           open={alert.show}

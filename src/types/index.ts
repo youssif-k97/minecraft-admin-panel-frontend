@@ -31,12 +31,14 @@ export interface MinecraftVersion {
 }
 export interface Player {
   uuid: string;
-  username: string;
+  name: string;
   lastLogin: string;
   isOnline: boolean;
   isWhitelisted: boolean;
   isBanned: boolean;
   isOp: boolean;
+  opLevel: number;
+  bypassesPlayerLimit: boolean;
 }
 
 export interface ServerProperty {

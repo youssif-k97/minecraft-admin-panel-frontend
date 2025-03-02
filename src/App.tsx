@@ -3,6 +3,7 @@ import { Box, CssBaseline, ThemeProvider, createTheme } from "@mui/material";
 import { WorldList } from "./components/WorldList";
 import { WorldManagement } from "./components/WorldManagement";
 import { NavPanel } from "./components/NavPanel";
+import { ServerManagement } from "./components/ServerManagement";
 import "./styles/minecraft-theme.css";
 
 const theme = createTheme({
@@ -97,6 +98,7 @@ function App() {
             <Routes>
               <Route path="/" element={<WorldList />} />
               <Route path="/world/:worldId" element={<WorldManagement />} />
+              <Route path="/server" element={<ServerManagement />} />
             </Routes>
           </Box>
         </Box>

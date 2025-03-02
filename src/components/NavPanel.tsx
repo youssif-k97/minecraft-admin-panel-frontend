@@ -17,6 +17,7 @@ import {
   ExpandLess,
   ExpandMore,
   ViewInAr,
+  Memory,
 } from "@mui/icons-material";
 import axios from "axios";
 import { MinecraftWorld } from "../types";
@@ -167,6 +168,45 @@ export const NavPanel = () => {
           </ListItemIcon>
           <ListItemText
             primary="World List"
+            sx={{
+              opacity: open ? 1 : 0,
+              "& .MuiTypography-root": {
+                fontFamily: "Minecraft, sans-serif",
+                textShadow: "2px 2px #000",
+              },
+            }}
+          />
+        </ListItem>
+
+        <ListItem
+          onClick={() => navigate("/server")}
+          sx={{
+            minHeight: 48,
+            height: 48,
+            justifyContent: open ? "initial" : "center",
+            px: 2.5,
+            cursor: "pointer",
+            "&:hover": {
+              backgroundColor: "rgba(255, 255, 255, 0.1)",
+            },
+            backgroundColor:
+              location.pathname === "/server"
+                ? "rgba(89, 59, 44, 0.7)"
+                : "transparent",
+          }}
+        >
+          <ListItemIcon
+            sx={{
+              minWidth: 24,
+              width: 24,
+              mr: open ? 3 : "auto",
+              justifyContent: "center",
+            }}
+          >
+            <Memory sx={{ fontSize: 24 }} />
+          </ListItemIcon>
+          <ListItemText
+            primary="Server Management"
             sx={{
               opacity: open ? 1 : 0,
               "& .MuiTypography-root": {

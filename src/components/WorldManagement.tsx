@@ -48,7 +48,7 @@ export const WorldManagement = () => {
     const response = await axios.get(
       `${import.meta.env.VITE_API_URL}/api/minecraft/worlds/${worldId}/players`
     );
-    setPlayers(response.data);
+    setPlayers(response.data.players);
   };
   const fetchProperties = async () => {
     const response = await axios.get(

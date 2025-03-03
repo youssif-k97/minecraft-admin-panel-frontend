@@ -4,12 +4,54 @@ export interface MinecraftWorld {
   isActive: boolean;
   players?: string[];
   properties?: Record<string, string>;
-  customProperties?: Record<string, string>;
+  port: number;
+  ram: {
+    min: number;
+    max: number;
+  };
 }
 
+export interface WorldConfig {
+  worldName: string;
+  serverVersion: string;
+  port: number;
+  minMemory: number;
+  maxMemory: number;
+  createdAt: string;
+  lastStarted: string;
+  lastBackup: string;
+}
+
+export interface MinecraftVersion {
+  id: string;
+  type: string;
+  url: string;
+  time: string;
+  releaseTime: string;
+}
 export interface Player {
-  username: string;
+  uuid: string;
+  name: string;
+  lastLogin: string;
   isOnline: boolean;
   isWhitelisted: boolean;
-  isBlacklisted: boolean;
+  isBanned: boolean;
+  isOp: boolean;
+  opLevel: number;
+  bypassesPlayerLimit: boolean;
+}
+
+export interface ServerProperty {
+  key: string;
+  value: string;
+  type: "text" | "number" | "boolean" | "select";
+  options?: string[];
+  important?: boolean;
+  label?: string;
+  description?: string;
+}
+
+export interface Datapack {
+  name: string;
+  uploadDate: string;
 }

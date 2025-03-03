@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from "react";
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import { Box, CssBaseline, ThemeProvider, createTheme } from "@mui/material";
 import { WorldList } from "./components/WorldList";
 import { WorldManagement } from "./components/WorldManagement";
+import { NavPanel } from "./components/NavPanel";
+import { ServerManagement } from "./components/ServerManagement";
 import "./styles/minecraft-theme.css";
 
 const theme = createTheme({
@@ -74,21 +75,34 @@ function App() {
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
-      <Box
-        sx={{
-          minHeight: "100vh",
-          width: "100%",
-          display: "flex",
-          flexDirection: "column",
-        }}
-      >
-        <Router>
-          <Routes>
-            <Route path="/" element={<WorldList />} />
-            <Route path="/world/:worldId" element={<WorldManagement />} />
-          </Routes>
-        </Router>
-      </Box>
+      <Router>
+        <Box
+          sx={{
+            minHeight: "100vh",
+            width: "100%",
+            display: "flex",
+            position: "relative",
+          }}
+        >
+          <NavPanel />
+          <Box
+            component="main"
+            sx={{
+              flexGrow: 1,
+              width: "100%",
+              display: "flex",
+              flexDirection: "column",
+              marginLeft: "64px",
+            }}
+          >
+            <Routes>
+              <Route path="/" element={<WorldList />} />
+              <Route path="/world/:worldId" element={<WorldManagement />} />
+              <Route path="/server" element={<ServerManagement />} />
+            </Routes>
+          </Box>
+        </Box>
+      </Router>
     </ThemeProvider>
   );
 }

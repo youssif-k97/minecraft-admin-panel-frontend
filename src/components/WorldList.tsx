@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import Grid from "@mui/material/Grid2";
 import {
   Card,
@@ -9,21 +9,25 @@ import {
   Box,
   Container,
 } from "@mui/material";
+import { Add } from "@mui/icons-material";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import { MinecraftWorld } from "../types";
+import { CreateWorldDialog } from "./CreateWorldDialog";
 
 export const WorldList = () => {
   const [worlds, setWorlds] = useState<MinecraftWorld[]>([]);
+  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const navigate = useNavigate();
 
+  const fetchWorlds = async () => {
+    const response = await axios.get(
+      `${import.meta.env.VITE_API_URL}/api/minecraft/worlds`
+    );
+    setWorlds(response.data.worlds);
+  };
+
   useEffect(() => {
-    const fetchWorlds = async () => {
-      const response = await axios.get(
-        `${import.meta.env.VITE_API_URL}/api/minecraft/worlds`
-      );
-      setWorlds(response.data.worlds);
-    };
     fetchWorlds();
     const interval = setInterval(fetchWorlds, 30000);
     return () => clearInterval(interval);
@@ -33,8 +37,6 @@ export const WorldList = () => {
     <Box
       sx={{
         flexGrow: 1,
-        width: "100%",
-        minHeight: "100vh",
         p: 4,
       }}
     >
@@ -115,7 +117,43 @@ export const WorldList = () => {
               </Card>
             </Grid>
           ))}
+          {/* Create New World Card */}
+          <Grid size={{ xs: 12, sm: 6, md: 4 }}>
+            <Card
+              className="minecraft-card"
+              sx={{
+                height: "100%",
+                cursor: "pointer",
+                transition: "transform 0.2s",
+                "&:hover": {
+                  transform: "translateY(-4px)",
+                },
+              }}
+              onClick={() => setIsCreateDialogOpen(true)}
+            >
+              <CardContent
+                sx={{
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  height: "100%",
+                  minHeight: "200px",
+                }}
+              >
+                <Add sx={{ fontSize: 48, mb: 2 }} />
+                <Typography variant="h6" component="h2">
+                  Create New World
+                </Typography>
+              </CardContent>
+            </Card>
+          </Grid>
         </Grid>
+        <CreateWorldDialog
+          open={isCreateDialogOpen}
+          onClose={() => setIsCreateDialogOpen(false)}
+          onWorldCreated={fetchWorlds}
+        />
       </Container>
     </Box>
   );

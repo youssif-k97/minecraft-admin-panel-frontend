@@ -5,7 +5,6 @@ import {
   List,
   ListItem,
   ListItemText,
-  ListItemSecondaryAction,
   IconButton,
   Button,
   Dialog,
@@ -18,20 +17,19 @@ import {
 } from "@mui/material";
 import { Delete, Upload } from "@mui/icons-material";
 import axios from "axios";
-
-interface Datapack {
-  name: string;
-  uploadDate: string;
-}
+import { Datapack } from "../types";
 
 interface DatapackManagementProps {
   worldId: string;
+  datapacks: Datapack[];
+  refreshDatapacks: () => void;
 }
 
 export const DatapackManagement: React.FC<DatapackManagementProps> = ({
   worldId,
+  datapacks,
+  refreshDatapacks,
 }) => {
-  const [datapacks, setDatapacks] = useState<Datapack[]>([]);
   const [openUpload, setOpenUpload] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [deleteDatapackId, setDeleteDatapackId] = useState("");
@@ -42,19 +40,6 @@ export const DatapackManagement: React.FC<DatapackManagementProps> = ({
     message: string;
     severity: "info" | "success" | "error";
   }>({ show: false, message: "", severity: "info" });
-
-  useEffect(() => {
-    fetchDatapacks();
-  }, [worldId]);
-
-  const fetchDatapacks = async () => {
-    const response = await axios.get(
-      `${
-        import.meta.env.VITE_API_URL
-      }/api/minecraft/worlds/${worldId}/datapacks`
-    );
-    setDatapacks(response.data.datapacks);
-  };
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     if (event.target.files && event.target.files[0]) {
@@ -76,6 +61,7 @@ export const DatapackManagement: React.FC<DatapackManagementProps> = ({
         }/api/minecraft/worlds/${worldId}/datapacks/upload-url`,
         {
           name: selectedFile.name,
+          type: "datapacks",
         }
       );
       console.log("Upload data:", uploadData);
@@ -103,7 +89,7 @@ export const DatapackManagement: React.FC<DatapackManagementProps> = ({
         message: "Datapack uploaded successfully: " + selectedFile.name,
         severity: "info",
       });
-      fetchDatapacks();
+      refreshDatapacks();
     } catch (error) {
       console.error("Error uploading datapack:", error);
     } finally {
@@ -124,7 +110,7 @@ export const DatapackManagement: React.FC<DatapackManagementProps> = ({
           import.meta.env.VITE_API_URL
         }/api/minecraft/worlds/${worldId}/datapacks/${datapackId}`
       );
-      fetchDatapacks();
+      refreshDatapacks();
       setAlert({
         show: true,
         message: "Deteted " + datapackId + " successfully",
@@ -158,14 +144,7 @@ export const DatapackManagement: React.FC<DatapackManagementProps> = ({
             key={datapack.name}
             className="minecraft-card"
             sx={{ mb: 1 }}
-          >
-            <ListItemText
-              primary={datapack.name}
-              secondary={`Uploaded: ${new Date(
-                datapack.uploadDate
-              ).toLocaleDateString()}`}
-            />
-            <ListItemSecondaryAction>
+            secondaryAction={
               <IconButton
                 edge="end"
                 onClick={() => handleDeleteDialog(datapack.name)}
@@ -173,7 +152,14 @@ export const DatapackManagement: React.FC<DatapackManagementProps> = ({
               >
                 <Delete />
               </IconButton>
-            </ListItemSecondaryAction>
+            }
+          >
+            <ListItemText
+              primary={datapack.name}
+              secondary={`Uploaded: ${new Date(
+                datapack.uploadDate
+              ).toLocaleDateString()}`}
+            />
           </ListItem>
         ))}
       </List>

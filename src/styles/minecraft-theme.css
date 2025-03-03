@@ -55,7 +55,7 @@ body {
 }
 
 .minecraft-card {
-  background-color: rgba(0, 0, 0, 0.8) !important;
+  background-color: rgba(0, 0, 0, 1) !important;
   border: 3px solid var(--minecraft-dirt) !important;
   color: white !important;
   transition: transform 0.2s, box-shadow 0.2s;
@@ -99,4 +99,30 @@ body {
 
 .MuiSwitch-root.offline .MuiSwitch-track {
   background-color: var(--minecraft-offline) !important;
+}
+
+/* Custom Scrollbar Styling */
+::-webkit-scrollbar {
+  width: 12px;
+  background-color: #242424;
+}
+
+::-webkit-scrollbar-track {
+  background-color: var(--minecraft-stone);
+  border: 2px solid #000;
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: var(--minecraft-dirt);
+  border: 2px solid #000;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background-color: var(--minecraft-wood);
+}
+
+/* Firefox scrollbar styling */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--minecraft-dirt) var(--minecraft-stone);
 }

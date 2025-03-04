@@ -51,13 +51,15 @@ interface FormattedCPUMetric {
 
 interface FormattedDiskMetric {
   time: string;
-  value: number;
+  readValue: number;
+  writeValue: number;
   timestamp: number;
 }
 
 interface FormattedNetworkMetric {
   time: string;
-  value: number;
+  inValue: number;
+  outValue: number;
   timestamp: number;
 }
 
@@ -70,16 +72,8 @@ interface TimeRange {
 
 // Metric type options
 type MetricTab = "cpu" | "disk" | "network";
-type DiskMetricType =
-  | "iops.read"
-  | "iops.write"
-  | "bandwidth.read"
-  | "bandwidth.write";
-type NetworkMetricType =
-  | "pps.in"
-  | "pps.out"
-  | "bandwidth.in"
-  | "bandwidth.out";
+type DiskMetricType = "iops" | "bandwidth";
+type NetworkMetricType = "pps" | "bandwidth";
 
 const TIME_RANGES: { [key: string]: TimeRange } = {
   "5m": { label: "Past 5 minutes", minutes: 5, step: 5, windowSize: 60 },
@@ -99,19 +93,15 @@ const TIME_RANGES: { [key: string]: TimeRange } = {
 const DISK_METRIC_TYPES: {
   [key in DiskMetricType]: { label: string; unit: string };
 } = {
-  "iops.read": { label: "Read IOPS", unit: "iop/s" },
-  "iops.write": { label: "Write IOPS", unit: "iop/s" },
-  "bandwidth.read": { label: "Read Bandwidth", unit: "bytes/s" },
-  "bandwidth.write": { label: "Write Bandwidth", unit: "bytes/s" },
+  iops: { label: "IOPS", unit: "iop/s" },
+  bandwidth: { label: "Bandwidth", unit: "bytes/s" },
 };
 
 const NETWORK_METRIC_TYPES: {
   [key in NetworkMetricType]: { label: string; unit: string };
 } = {
-  "pps.in": { label: "Packets In", unit: "packets/s" },
-  "pps.out": { label: "Packets Out", unit: "packets/s" },
-  "bandwidth.in": { label: "Bandwidth In", unit: "bytes/s" },
-  "bandwidth.out": { label: "Bandwidth Out", unit: "bytes/s" },
+  pps: { label: "Packets per Second", unit: "packets/s" },
+  bandwidth: { label: "Bandwidth", unit: "bytes/s" },
 };
 
 export const ServerManagement = () => {
@@ -129,10 +119,9 @@ export const ServerManagement = () => {
   // UI state
   const [selectedRange, setSelectedRange] = useState<string>("30m");
   const [activeTab, setActiveTab] = useState<MetricTab>("cpu");
-  const [diskMetricType, setDiskMetricType] =
-    useState<DiskMetricType>("iops.read");
+  const [diskMetricType, setDiskMetricType] = useState<DiskMetricType>("iops");
   const [networkMetricType, setNetworkMetricType] =
-    useState<NetworkMetricType>("bandwidth.in");
+    useState<NetworkMetricType>("bandwidth");
 
   const SERVER_ID = import.meta.env.VITE_SERVER_ID;
   const HETZNER_API_KEY = import.meta.env.VITE_HETZNER_PROJECT_API_KEY;
@@ -204,7 +193,6 @@ export const ServerManagement = () => {
 
   const fetchMetrics = async () => {
     try {
-      // Only set loading on initial fetch for each tab
       if (
         (activeTab === "cpu" && cpuMetrics.length === 0) ||
         (activeTab === "disk" && diskMetrics.length === 0) ||
@@ -221,43 +209,59 @@ export const ServerManagement = () => {
       const startIso = startDate.toISOString();
       const endIso = endDate.toISOString();
 
-      // Determine which metric type to fetch based on active tab
-      let metricType: string;
-      let specificMetric: string = "";
-
+      let response;
       switch (activeTab) {
         case "cpu":
-          metricType = "cpu";
+          response = await axios.get(
+            `https://api.hetzner.cloud/v1/servers/${SERVER_ID}/metrics`,
+            {
+              headers: {
+                Authorization: `Bearer ${HETZNER_API_KEY}`,
+              },
+              params: {
+                type: "cpu",
+                start: startIso,
+                end: endIso,
+                step: range.step,
+              },
+            }
+          );
           break;
         case "disk":
-          metricType = "disk";
-          specificMetric = `disk.0.${diskMetricType}`;
+          response = await axios.get(
+            `https://api.hetzner.cloud/v1/servers/${SERVER_ID}/metrics`,
+            {
+              headers: {
+                Authorization: `Bearer ${HETZNER_API_KEY}`,
+              },
+              params: {
+                type: "disk",
+                start: startIso,
+                end: endIso,
+                step: range.step,
+              },
+            }
+          );
           break;
         case "network":
-          metricType = "network";
-          specificMetric = `network.0.${networkMetricType}`;
+          response = await axios.get(
+            `https://api.hetzner.cloud/v1/servers/${SERVER_ID}/metrics`,
+            {
+              headers: {
+                Authorization: `Bearer ${HETZNER_API_KEY}`,
+              },
+              params: {
+                type: "network",
+                start: startIso,
+                end: endIso,
+                step: range.step,
+              },
+            }
+          );
           break;
-        default:
-          metricType = "cpu";
       }
 
-      const response = await axios.get(
-        `https://api.hetzner.cloud/v1/servers/${SERVER_ID}/metrics`,
-        {
-          headers: {
-            Authorization: `Bearer ${HETZNER_API_KEY}`,
-          },
-          params: {
-            type: metricType,
-            start: startIso,
-            end: endIso,
-            step: range.step,
-          },
-        }
-      );
-
-      // Process the response based on active tab
-      if (response.data?.metrics?.time_series) {
+      if (response?.data?.metrics?.time_series) {
         const range = TIME_RANGES[selectedRange];
 
         switch (activeTab) {
@@ -301,88 +305,156 @@ export const ServerManagement = () => {
             break;
 
           case "disk":
-            const diskKey = `disk.0.${diskMetricType}`;
-            if (
-              response.data.metrics.time_series[diskKey]?.values &&
-              Array.isArray(response.data.metrics.time_series[diskKey].values)
-            ) {
-              const diskData =
-                response.data.metrics.time_series[diskKey].values;
+            const diskData = response.data.metrics.time_series;
+            if (diskMetricType === "iops") {
+              const readData = diskData["disk.0.iops.read"]?.values || [];
+              const writeData = diskData["disk.0.iops.write"]?.values || [];
               const unit = DISK_METRIC_TYPES[diskMetricType].unit;
 
-              // Format the latest data point
-              const latestMetric = diskData[diskData.length - 1];
-              const formattedPoint = {
-                time: formatTimeLabel(latestMetric[0] * 1000, range),
-                timestamp: latestMetric[0] * 1000,
-                value: formatValue(latestMetric[1], unit),
-              };
+              if (readData.length > 0 && writeData.length > 0) {
+                // Format the latest data point
+                const latestRead = readData[readData.length - 1];
+                const latestWrite = writeData[writeData.length - 1];
+                const formattedPoint = {
+                  time: formatTimeLabel(latestRead[0] * 1000, range),
+                  timestamp: latestRead[0] * 1000,
+                  readValue: formatValue(latestRead[1], unit),
+                  writeValue: formatValue(latestWrite[1], unit),
+                };
 
-              // Update metrics with sliding window
-              setDiskMetrics((prevMetrics) => {
-                // If we're just starting, fill the window with the initial data
-                if (prevMetrics.length === 0) {
-                  const initialData = diskData
-                    .slice(-range.windowSize)
-                    .map((metric: DiskMetric) => ({
-                      time: formatTimeLabel(metric[0] * 1000, range),
-                      timestamp: metric[0] * 1000,
-                      value: formatValue(metric[1], unit),
-                    }));
-                  return initialData;
-                }
+                setDiskMetrics((prevMetrics) => {
+                  if (prevMetrics.length === 0) {
+                    const initialData = readData
+                      .slice(-range.windowSize)
+                      .map((metric: DiskMetric, index: number) => ({
+                        time: formatTimeLabel(metric[0] * 1000, range),
+                        timestamp: metric[0] * 1000,
+                        readValue: formatValue(metric[1], unit),
+                        writeValue: formatValue(writeData[index][1], unit),
+                      }));
+                    return initialData;
+                  }
 
-                // Add new point and remove oldest if we exceed window size
-                const newMetrics = [...prevMetrics, formattedPoint];
-                if (newMetrics.length > range.windowSize) {
-                  return newMetrics.slice(-range.windowSize);
-                }
-                return newMetrics;
-              });
+                  const newMetrics = [...prevMetrics, formattedPoint];
+                  if (newMetrics.length > range.windowSize) {
+                    return newMetrics.slice(-range.windowSize);
+                  }
+                  return newMetrics;
+                });
+              }
+            } else {
+              const readData = diskData["disk.0.bandwidth.read"]?.values || [];
+              const writeData =
+                diskData["disk.0.bandwidth.write"]?.values || [];
+              const unit = DISK_METRIC_TYPES[diskMetricType].unit;
+
+              if (readData.length > 0 && writeData.length > 0) {
+                const latestRead = readData[readData.length - 1];
+                const latestWrite = writeData[writeData.length - 1];
+                const formattedPoint = {
+                  time: formatTimeLabel(latestRead[0] * 1000, range),
+                  timestamp: latestRead[0] * 1000,
+                  readValue: formatValue(latestRead[1], unit),
+                  writeValue: formatValue(latestWrite[1], unit),
+                };
+
+                setDiskMetrics((prevMetrics) => {
+                  if (prevMetrics.length === 0) {
+                    const initialData = readData
+                      .slice(-range.windowSize)
+                      .map((metric: DiskMetric, index: number) => ({
+                        time: formatTimeLabel(metric[0] * 1000, range),
+                        timestamp: metric[0] * 1000,
+                        readValue: formatValue(metric[1], unit),
+                        writeValue: formatValue(writeData[index][1], unit),
+                      }));
+                    return initialData;
+                  }
+
+                  const newMetrics = [...prevMetrics, formattedPoint];
+                  if (newMetrics.length > range.windowSize) {
+                    return newMetrics.slice(-range.windowSize);
+                  }
+                  return newMetrics;
+                });
+              }
             }
             break;
 
           case "network":
-            const networkKey = `network.0.${networkMetricType}`;
-            if (
-              response.data.metrics.time_series[networkKey]?.values &&
-              Array.isArray(
-                response.data.metrics.time_series[networkKey].values
-              )
-            ) {
-              const networkData =
-                response.data.metrics.time_series[networkKey].values;
+            const networkData = response.data.metrics.time_series;
+            if (networkMetricType === "pps") {
+              const inData = networkData["network.0.pps.in"]?.values || [];
+              const outData = networkData["network.0.pps.out"]?.values || [];
               const unit = NETWORK_METRIC_TYPES[networkMetricType].unit;
 
-              // Format the latest data point
-              const latestMetric = networkData[networkData.length - 1];
-              const formattedPoint = {
-                time: formatTimeLabel(latestMetric[0] * 1000, range),
-                timestamp: latestMetric[0] * 1000,
-                value: formatValue(latestMetric[1], unit),
-              };
+              if (inData.length > 0 && outData.length > 0) {
+                const latestIn = inData[inData.length - 1];
+                const latestOut = outData[outData.length - 1];
+                const formattedPoint = {
+                  time: formatTimeLabel(latestIn[0] * 1000, range),
+                  timestamp: latestIn[0] * 1000,
+                  inValue: formatValue(latestIn[1], unit),
+                  outValue: formatValue(latestOut[1], unit),
+                };
 
-              // Update metrics with sliding window
-              setNetworkMetrics((prevMetrics) => {
-                // If we're just starting, fill the window with the initial data
-                if (prevMetrics.length === 0) {
-                  const initialData = networkData
-                    .slice(-range.windowSize)
-                    .map((metric: NetworkMetric) => ({
-                      time: formatTimeLabel(metric[0] * 1000, range),
-                      timestamp: metric[0] * 1000,
-                      value: formatValue(metric[1], unit),
-                    }));
-                  return initialData;
-                }
+                setNetworkMetrics((prevMetrics) => {
+                  if (prevMetrics.length === 0) {
+                    const initialData = inData
+                      .slice(-range.windowSize)
+                      .map((metric: NetworkMetric, index: number) => ({
+                        time: formatTimeLabel(metric[0] * 1000, range),
+                        timestamp: metric[0] * 1000,
+                        inValue: formatValue(metric[1], unit),
+                        outValue: formatValue(outData[index][1], unit),
+                      }));
+                    return initialData;
+                  }
 
-                // Add new point and remove oldest if we exceed window size
-                const newMetrics = [...prevMetrics, formattedPoint];
-                if (newMetrics.length > range.windowSize) {
-                  return newMetrics.slice(-range.windowSize);
-                }
-                return newMetrics;
-              });
+                  const newMetrics = [...prevMetrics, formattedPoint];
+                  if (newMetrics.length > range.windowSize) {
+                    return newMetrics.slice(-range.windowSize);
+                  }
+                  return newMetrics;
+                });
+              }
+            } else {
+              const inData =
+                networkData["network.0.bandwidth.in"]?.values || [];
+              const outData =
+                networkData["network.0.bandwidth.out"]?.values || [];
+              const unit = NETWORK_METRIC_TYPES[networkMetricType].unit;
+
+              if (inData.length > 0 && outData.length > 0) {
+                const latestIn = inData[inData.length - 1];
+                const latestOut = outData[outData.length - 1];
+                const formattedPoint = {
+                  time: formatTimeLabel(latestIn[0] * 1000, range),
+                  timestamp: latestIn[0] * 1000,
+                  inValue: formatValue(latestIn[1], unit),
+                  outValue: formatValue(latestOut[1], unit),
+                };
+
+                setNetworkMetrics((prevMetrics) => {
+                  if (prevMetrics.length === 0) {
+                    const initialData = inData
+                      .slice(-range.windowSize)
+                      .map((metric: NetworkMetric, index: number) => ({
+                        time: formatTimeLabel(metric[0] * 1000, range),
+                        timestamp: metric[0] * 1000,
+                        inValue: formatValue(metric[1], unit),
+                        outValue: formatValue(outData[index][1], unit),
+                      }));
+                    return initialData;
+                  }
+
+                  const newMetrics = [...prevMetrics, formattedPoint];
+                  if (newMetrics.length > range.windowSize) {
+                    return newMetrics.slice(-range.windowSize);
+                  }
+                  return newMetrics;
+                });
+              }
             }
             break;
         }
@@ -453,9 +525,120 @@ export const ServerManagement = () => {
     }
   };
 
-  // Get current data key for the chart
-  const getCurrentDataKey = () => {
-    return activeTab === "cpu" ? "usage" : "value";
+  const renderChart = () => {
+    if (loading && getCurrentMetrics().length === 0) {
+      return (
+        <Box sx={{ display: "flex", justifyContent: "center", p: 3 }}>
+          <CircularProgress />
+        </Box>
+      );
+    }
+
+    if (error) {
+      return <Typography color="error">{error}</Typography>;
+    }
+
+    return (
+      <Box sx={{ height: 400, width: "100%" }}>
+        <ResponsiveContainer width="100%" height="100%">
+          <LineChart
+            data={getCurrentMetrics()}
+            margin={{
+              top: 5,
+              right: 30,
+              left: 20,
+              bottom: 5,
+            }}
+          >
+            <CartesianGrid strokeDasharray="3 3" />
+            <XAxis
+              dataKey="time"
+              tick={{
+                fill: "white",
+                fontSize: 11,
+                angle: -45,
+                textAnchor: "end",
+                dy: 10,
+              }}
+              tickLine={{ stroke: "white" }}
+              height={60}
+              interval="preserveStartEnd"
+            />
+            <YAxis
+              tick={{ fill: "white" }}
+              tickLine={{ stroke: "white" }}
+              label={{
+                value: getCurrentUnitLabel(),
+                angle: -90,
+                position: "insideLeft",
+                style: { fill: "white" },
+              }}
+            />
+            <Tooltip
+              contentStyle={{
+                backgroundColor: "rgba(0, 0, 0, 0.8)",
+                border: "1px solid #444",
+                color: "white",
+              }}
+            />
+            <Legend />
+            {activeTab === "cpu" ? (
+              <Line
+                type="monotone"
+                dataKey="usage"
+                name="CPU Usage"
+                stroke="#8884d8"
+                activeDot={{ r: 8 }}
+              />
+            ) : activeTab === "disk" ? (
+              <>
+                <Line
+                  type="monotone"
+                  dataKey="readValue"
+                  name={
+                    diskMetricType === "iops" ? "Read IOPS" : "Read Bandwidth"
+                  }
+                  stroke="#82ca9d"
+                  activeDot={{ r: 8 }}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="writeValue"
+                  name={
+                    diskMetricType === "iops" ? "Write IOPS" : "Write Bandwidth"
+                  }
+                  stroke="#8884d8"
+                  activeDot={{ r: 8 }}
+                />
+              </>
+            ) : (
+              <>
+                <Line
+                  type="monotone"
+                  dataKey="inValue"
+                  name={
+                    networkMetricType === "pps" ? "Packets In" : "Bandwidth In"
+                  }
+                  stroke="#82ca9d"
+                  activeDot={{ r: 8 }}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="outValue"
+                  name={
+                    networkMetricType === "pps"
+                      ? "Packets Out"
+                      : "Bandwidth Out"
+                  }
+                  stroke="#8884d8"
+                  activeDot={{ r: 8 }}
+                />
+              </>
+            )}
+          </LineChart>
+        </ResponsiveContainer>
+      </Box>
+    );
   };
 
   return (
@@ -557,59 +740,7 @@ export const ServerManagement = () => {
             </Box>
           </Box>
 
-          {loading && getCurrentMetrics().length === 0 ? (
-            <Box sx={{ display: "flex", justifyContent: "center", p: 3 }}>
-              <CircularProgress />
-            </Box>
-          ) : error ? (
-            <Typography color="error">{error}</Typography>
-          ) : (
-            <Box sx={{ height: 400, width: "100%" }}>
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart
-                  data={getCurrentMetrics()}
-                  margin={{
-                    top: 5,
-                    right: 30,
-                    left: 20,
-                    bottom: 5,
-                  }}
-                >
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis
-                    dataKey="time"
-                    tick={{ fill: "white" }}
-                    tickLine={{ stroke: "white" }}
-                  />
-                  <YAxis
-                    tick={{ fill: "white" }}
-                    tickLine={{ stroke: "white" }}
-                    label={{
-                      value: getCurrentUnitLabel(),
-                      angle: -90,
-                      position: "insideLeft",
-                      style: { fill: "white" },
-                    }}
-                  />
-                  <Tooltip
-                    contentStyle={{
-                      backgroundColor: "rgba(0, 0, 0, 0.8)",
-                      border: "1px solid #444",
-                      color: "white",
-                    }}
-                  />
-                  <Legend />
-                  <Line
-                    type="monotone"
-                    dataKey={getCurrentDataKey()}
-                    name={getCurrentMetricLabel()}
-                    stroke="#8884d8"
-                    activeDot={{ r: 8 }}
-                  />
-                </LineChart>
-              </ResponsiveContainer>
-            </Box>
-          )}
+          {renderChart()}
         </CardContent>
       </Card>
     </Box>

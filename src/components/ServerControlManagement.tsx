@@ -25,6 +25,7 @@ import {
   Refresh,
   Storage,
   Terminal,
+  Send,
 } from "@mui/icons-material";
 
 interface ServerControlPanelProps {
@@ -42,6 +43,7 @@ interface ServerControlPanelProps {
   onRamChange: (ram: { min: number; max: number }) => Promise<void>;
   onDownloadWorld: () => Promise<void>;
   onBackupWorld: () => Promise<void>;
+  onSendRconCommand?: (command: string) => Promise<string>; // New prop for RCON commands
 }
 
 interface LogMessage {
@@ -64,9 +66,13 @@ export const ServerControlPanel: React.FC<ServerControlPanelProps> = ({
   onRamChange,
   onDownloadWorld,
   onBackupWorld,
+  onSendRconCommand,
 }) => {
   const [openPortDialog, setOpenPortDialog] = useState(false);
   const [openRamDialog, setOpenRamDialog] = useState(false);
+  const [openRconDialog, setOpenRconDialog] = useState(false); // New state for RCON dialog
+  const [rconCommand, setRconCommand] = useState(""); // New state for RCON command
+  const [rconResponse, setRconResponse] = useState<string | null>(null); // New state for RCON response
   const [newPort, setNewPort] = useState(currentPort);
   const [newRam, setNewRam] = useState(currentRam);
   const [loading, setLoading] = useState<string | null>(null);
@@ -230,6 +236,36 @@ export const ServerControlPanel: React.FC<ServerControlPanelProps> = ({
     }, "Updating port...");
   };
 
+  const handleRconCommand = async () => {
+    if (!onSendRconCommand || !rconCommand.trim()) return;
+
+    setLoading("Sending RCON command...");
+    setError(null);
+    setRconResponse(null);
+
+    try {
+      const response = await onSendRconCommand(rconCommand);
+      // Handle both string responses and object responses with a message property
+      setRconResponse(
+        typeof response === "object" && response.message
+          ? response.message
+          : response
+      );
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "Failed to send RCON command"
+      );
+    } finally {
+      setLoading(null);
+    }
+  };
+
+  const handleRconDialogClose = () => {
+    setOpenRconDialog(false);
+    setRconCommand("");
+    setRconResponse(null);
+  };
+
   const formatRam = (value: number) => `${value}GB`;
   return (
     <Box>
@@ -293,7 +329,7 @@ export const ServerControlPanel: React.FC<ServerControlPanelProps> = ({
             <CardHeader title="Quick Actions" />
             <CardContent>
               <Grid container spacing={0.5}>
-                <Grid size={{ xs: 12 }}>
+                <Grid size={{ xs: 12, sm: 6 }}>
                   <Button
                     fullWidth
                     variant="contained"
@@ -305,6 +341,18 @@ export const ServerControlPanel: React.FC<ServerControlPanelProps> = ({
                     className="minecraft-btn"
                   >
                     Restart Server
+                  </Button>
+                </Grid>
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  <Button
+                    fullWidth
+                    variant="contained"
+                    startIcon={<Terminal />}
+                    onClick={() => setOpenRconDialog(true)}
+                    disabled={!isActive || loading !== null}
+                    className="minecraft-btn"
+                  >
+                    RCON Command
                   </Button>
                 </Grid>
                 <Grid size={{ xs: 6 }}>
@@ -403,6 +451,71 @@ export const ServerControlPanel: React.FC<ServerControlPanelProps> = ({
           {error}
         </Alert>
       )}
+
+      {/* RCON Command Dialog */}
+      <Dialog
+        open={openRconDialog}
+        onClose={handleRconDialogClose}
+        maxWidth="md"
+        fullWidth
+      >
+        <DialogTitle>Send RCON Command</DialogTitle>
+        <DialogContent>
+          <Box sx={{ mt: 2 }}>
+            <TextField
+              fullWidth
+              label="Command"
+              value={rconCommand}
+              onChange={(e) => setRconCommand(e.target.value)}
+              placeholder="Enter Minecraft command (e.g., help, list, time set day)"
+              onKeyPress={(e) => {
+                if (e.key === "Enter" && rconCommand.trim() && !loading) {
+                  handleRconCommand();
+                }
+              }}
+            />
+
+            <Button
+              variant="contained"
+              onClick={handleRconCommand}
+              disabled={!rconCommand.trim() || loading !== null}
+              startIcon={<Send />}
+              className="minecraft-btn"
+              sx={{ mt: 2, mb: 2 }}
+              fullWidth
+            >
+              Send Command
+            </Button>
+
+            {rconResponse && (
+              <Box
+                sx={{
+                  mt: 2,
+                  p: 2,
+                  bgcolor: "rgba(0, 0, 0, 0.1)",
+                  borderRadius: 1,
+                  fontFamily: "monospace",
+                  whiteSpace: "pre-wrap",
+                  maxHeight: "300px",
+                  overflowY: "auto",
+                }}
+              >
+                {rconResponse}
+              </Box>
+            )}
+
+            <Alert severity="info" sx={{ mt: 2 }}>
+              RCON commands allow you to control the Minecraft server directly.
+              Common commands include: <code>help</code>, <code>list</code>,{" "}
+              <code>op [player]</code>,<code>time set [day/night]</code>,{" "}
+              <code>weather [clear/rain]</code>
+            </Alert>
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleRconDialogClose}>Close</Button>
+        </DialogActions>
+      </Dialog>
 
       {/* RAM Allocation Dialog */}
       <Dialog

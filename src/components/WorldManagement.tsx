@@ -254,6 +254,15 @@ export const WorldManagement = () => {
     setProperties(response.data);
   };
 
+  const handleRconCommand = async (command: string) => {
+    const response = await axios.post(
+      `${
+        import.meta.env.VITE_API_URL
+      }/api/minecraft/worlds/${worldId}/raw-rcon-command`,
+      { command }
+    );
+    return response.data;
+  };
   return (
     <Box sx={{ height: "100vh", padding: "20px" }}>
       <Box
@@ -313,6 +322,7 @@ export const WorldManagement = () => {
             }}
             onDownloadWorld={handleDownloadWorld}
             onBackupWorld={handleBackupWorld}
+            onSendRconCommand={handleRconCommand}
           />
         </TabPanel>
         <TabPanel value={value} index={1}>

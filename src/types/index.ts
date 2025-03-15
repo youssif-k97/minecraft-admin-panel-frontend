@@ -49,6 +49,7 @@ export interface ServerProperty {
   important?: boolean;
   label?: string;
   description?: string;
+  disabled?: boolean;
 }
 
 export interface Datapack {

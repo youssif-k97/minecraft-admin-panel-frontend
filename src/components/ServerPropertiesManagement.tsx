@@ -89,6 +89,7 @@ export const ServerPropertiesManagement: React.FC<
                   onChange={(e) =>
                     handlePropertyChange(property.key, String(e.target.checked))
                   }
+                  disabled={property.disabled}
                 />
               }
               label={property.label || property.key}
@@ -105,6 +106,7 @@ export const ServerPropertiesManagement: React.FC<
                   handlePropertyChange(property.key, e.target.value)
                 }
                 label={property.label || property.key}
+                disabled={property.disabled}
               >
                 {property.options?.map((option) => (
                   <MenuItem key={option} value={option}>
@@ -126,6 +128,7 @@ export const ServerPropertiesManagement: React.FC<
                 handlePropertyChange(property.key, e.target.value)
               }
               variant="outlined"
+              disabled={property.disabled}
             />
           );
 
@@ -139,6 +142,7 @@ export const ServerPropertiesManagement: React.FC<
                 handlePropertyChange(property.key, e.target.value)
               }
               variant="outlined"
+              disabled={property.disabled}
             />
           );
       }

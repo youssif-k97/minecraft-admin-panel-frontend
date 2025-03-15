@@ -10,6 +10,7 @@ export const SERVER_PROPERTY_DEFINITIONS: Record<
     important: true,
     label: "Server Port",
     description: "The port your server will listen on. Default: 25565",
+    disabled: true,
   },
   "server-ip": {
     type: "text",
@@ -17,11 +18,12 @@ export const SERVER_PROPERTY_DEFINITIONS: Record<
     label: "Server IP",
     description:
       "The IP address your server will bind to. Leave blank to bind to all interfaces.",
+    disabled: true,
   },
   "online-mode": {
     type: "boolean",
     important: true,
-    label: "Online Mode (Premium)",
+    label: "Online Mode",
     description:
       "If true, the server will verify that players are authenticated to Minecraft. Set to false for offline mode.",
   },
@@ -38,6 +40,34 @@ export const SERVER_PROPERTY_DEFINITIONS: Record<
     label: "Prevent Proxy Connections",
     description:
       "If true, the server will prevent players from connecting through proxies or VPNs.",
+  },
+  "use-native-transport": {
+    type: "boolean",
+    important: false,
+    label: "Use Native Transport",
+    description:
+      "If true, the server will use native transport mechanisms which can improve performance.",
+  },
+  "rate-limit": {
+    type: "number",
+    important: false,
+    label: "Rate Limit",
+    description:
+      "Sets the maximum number of packets a user can send before getting kicked. 0 disables this feature.",
+  },
+  "enable-status": {
+    type: "boolean",
+    important: false,
+    label: "Enable Status",
+    description:
+      "If true, the server will respond to status requests in the server list.",
+  },
+  "log-ips": {
+    type: "boolean",
+    important: false,
+    label: "Log IPs",
+    description:
+      "If true, the server will log player IP addresses in the server logs.",
   },
 
   // Game Rules
@@ -127,6 +157,14 @@ export const SERVER_PROPERTY_DEFINITIONS: Record<
     description:
       "Sets the maximum possible size in blocks for the world border, measured from the center. Default: 29999984.",
   },
+  "region-file-compression": {
+    type: "select",
+    options: ["deflate", "none"],
+    important: false,
+    label: "Region File Compression",
+    description:
+      "The compression method used for region files. 'deflate' is the default and provides good compression.",
+  },
 
   // Performance Settings
   "view-distance": {
@@ -164,6 +202,13 @@ export const SERVER_PROPERTY_DEFINITIONS: Record<
     description:
       "Limits the number of consecutive neighbor updates before skipping additional ones. Prevents update loops from causing lag.",
   },
+  "pause-when-empty-seconds": {
+    type: "number",
+    important: false,
+    label: "Pause When Empty (seconds)",
+    description:
+      "Number of seconds to wait before pausing the server when no players are online. 0 disables this feature.",
+  },
 
   // Player Settings
   "max-players": {
@@ -193,6 +238,20 @@ export const SERVER_PROPERTY_DEFINITIONS: Record<
     description:
       "If true, non-whitelisted players will be disconnected when the whitelist is reloaded.",
   },
+  "enforce-secure-profile": {
+    type: "boolean",
+    important: false,
+    label: "Enforce Secure Profile",
+    description:
+      "If true, players without a secure profile will be disconnected.",
+  },
+  "accepts-transfers": {
+    type: "boolean",
+    important: false,
+    label: "Accept Transfers",
+    description:
+      "If true, the server will accept player transfers from other servers.",
+  },
 
   // Game Features
   "allow-nether": {
@@ -216,13 +275,6 @@ export const SERVER_PROPERTY_DEFINITIONS: Record<
     description:
       "If true, monsters will spawn naturally according to the game rules.",
   },
-  "spawn-animals": {
-    type: "boolean",
-    important: true,
-    label: "Spawn Animals",
-    description:
-      "If true, animals will spawn naturally according to the game rules.",
-  },
   "spawn-protection": {
     type: "number",
     important: true,
@@ -235,6 +287,20 @@ export const SERVER_PROPERTY_DEFINITIONS: Record<
     important: false,
     label: "Enable Command Blocks",
     description: "If true, command blocks can be used on the server.",
+  },
+  "function-permission-level": {
+    type: "number",
+    important: false,
+    label: "Function Permission Level",
+    description:
+      "Permission level required to run function commands (0-4). Higher levels grant more permissions.",
+  },
+  "op-permission-level": {
+    type: "number",
+    important: false,
+    label: "Operator Permission Level",
+    description:
+      "Permission level granted to operators (1-4). Higher levels grant more permissions.",
   },
 
   // Server Information
@@ -251,6 +317,24 @@ export const SERVER_PROPERTY_DEFINITIONS: Record<
     label: "Hide Online Players",
     description:
       "If true, the server will not send the list of players in the server status response.",
+  },
+  "broadcast-console-to-ops": {
+    type: "boolean",
+    important: false,
+    label: "Broadcast Console to Ops",
+    description: "If true, console commands will be broadcast to operators.",
+  },
+  "broadcast-rcon-to-ops": {
+    type: "boolean",
+    important: false,
+    label: "Broadcast RCON to Ops",
+    description: "If true, RCON commands will be broadcast to operators.",
+  },
+  "bug-report-link": {
+    type: "text",
+    important: false,
+    label: "Bug Report Link",
+    description: "URL where players can report bugs related to the server.",
   },
 
   // Resource Pack
@@ -275,6 +359,30 @@ export const SERVER_PROPERTY_DEFINITIONS: Record<
     description:
       "Text shown to players when they're prompted to download the resource pack.",
   },
+  "resource-pack-id": {
+    type: "text",
+    important: false,
+    label: "Resource Pack ID",
+    description: "A unique identifier for the resource pack.",
+  },
+  "resource-pack-sha1": {
+    type: "text",
+    important: false,
+    label: "Resource Pack SHA1",
+    description: "SHA1 hash of the resource pack file for verification.",
+  },
+  "initial-enabled-packs": {
+    type: "text",
+    important: false,
+    label: "Initial Enabled Packs",
+    description: "Comma-separated list of data packs to enable by default.",
+  },
+  "initial-disabled-packs": {
+    type: "text",
+    important: false,
+    label: "Initial Disabled Packs",
+    description: "Comma-separated list of data packs to disable by default.",
+  },
 
   // RCON and Query
   "enable-rcon": {
@@ -283,6 +391,7 @@ export const SERVER_PROPERTY_DEFINITIONS: Record<
     label: "Enable RCON",
     description:
       "If true, enables remote access to the server console using RCON protocol.",
+    disabled: true,
   },
   "rcon.port": {
     type: "number",
@@ -290,6 +399,15 @@ export const SERVER_PROPERTY_DEFINITIONS: Record<
     label: "RCON Port",
     description:
       "Port for RCON remote access. Only active if enable-rcon is true.",
+    disabled: true,
+  },
+  "rcon.password": {
+    type: "text",
+    important: false,
+    label: "RCON Password",
+    description:
+      "Password for RCON remote access. Only active if enable-rcon is true.",
+    disabled: true,
   },
   "enable-query": {
     type: "boolean",
@@ -321,25 +439,17 @@ export const SERVER_PROPERTY_DEFINITIONS: Record<
     description:
       "If true, exposes JMX metrics for monitoring the server's performance.",
   },
-  "function-permission-level": {
-    type: "number",
-    important: false,
-    label: "Function Permission Level",
-    description:
-      "Permission level required to run function commands (0-4). Higher levels grant more permissions.",
-  },
-  "op-permission-level": {
-    type: "number",
-    important: false,
-    label: "Operator Permission Level",
-    description:
-      "Permission level granted to operators (1-4). Higher levels grant more permissions.",
-  },
   "text-filtering-config": {
     type: "text",
     important: false,
     label: "Text Filtering Config",
     description:
       "Path to a file containing chat filter rules. Used for filtering inappropriate chat messages.",
+  },
+  "text-filtering-version": {
+    type: "number",
+    important: false,
+    label: "Text Filtering Version",
+    description: "Version of the text filtering system to use.",
   },
 };

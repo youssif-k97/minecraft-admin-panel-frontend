@@ -51,49 +51,6 @@ export const PlayerManagement: React.FC<PlayerManagementProps> = ({
   const [bypassLimit, setBypassLimit] = useState(false);
   const [whitelistEnabled, setWhitelistEnabled] = useState(false); // This would come from server properties
 
-  useEffect(() => {
-    // insert multiple sample player test data into players array
-    const samplePlayer: Player = {
-      name: "test",
-      uuid: "test",
-      isOnline: true,
-      isBanned: false,
-      isWhitelisted: false,
-      lastLogin: new Date().getTime().toString(),
-      isOp: false,
-      opLevel: 0,
-      bypassesPlayerLimit: false,
-    };
-    players.push(samplePlayer);
-    const samplePlayer2: Player = {
-      name: "test2",
-      uuid: "test2",
-      isOnline: true,
-      isBanned: true,
-      isWhitelisted: false,
-      lastLogin: new Date().getTime().toString(),
-      isOp: false,
-      opLevel: 0,
-      bypassesPlayerLimit: false,
-    };
-    players.push(samplePlayer2);
-    const samplePlayer3: Player = {
-      name: "test3",
-      uuid: "test3",
-      isOnline: false,
-      isBanned: false,
-      isWhitelisted: true,
-      lastLogin: new Date().getTime().toString(),
-      isOp: true,
-      opLevel: 1,
-      bypassesPlayerLimit: true,
-    };
-    players.push(samplePlayer3);
-    players.push(samplePlayer2);
-    players.push(samplePlayer2);
-    players.push(samplePlayer);
-  }, []);
-
   const playersArray = Array.isArray(players) ? players : [];
   console.log(playersArray);
   const onlinePlayers = playersArray.filter((player) => player.isOnline);
@@ -191,9 +148,11 @@ export const PlayerManagement: React.FC<PlayerManagementProps> = ({
                           {player.name}
                         </Typography>
                       }
-                      secondary={`Last login: ${new Date(
+                      secondary={`Last login: ${
                         player.lastLogin
-                      ).toLocaleString()}`}
+                          ? new Date(player.lastLogin).toLocaleString()
+                          : "Never"
+                      }`}
                     />
                   </ListItem>
                 ))}
@@ -342,7 +301,19 @@ export const PlayerManagement: React.FC<PlayerManagementProps> = ({
             {selectedPlayer?.name}
           </Typography>
           {selectedPlayer?.isOnline && (
-            <Chip size="small" label="Online" color="success" sx={{ ml: 1 }} />
+            <Chip
+              size="small"
+              label="Online"
+              color="success"
+              sx={{
+                ml: 1,
+                boxShadow: "none",
+                "& .MuiChip-label": {
+                  fontWeight: "medium",
+                  textShadow: "none",
+                },
+              }}
+            />
           )}
         </DialogTitle>
         <DialogContent>

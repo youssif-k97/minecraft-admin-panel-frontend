@@ -48,6 +48,65 @@ export const WorldManagement = () => {
     const response = await axios.get(
       `${import.meta.env.VITE_API_URL}/api/minecraft/worlds/${worldId}/players`
     );
+    // add some sample players to the data
+    const samplePlayers = [
+      {
+        name: "John Doe",
+        uuid: "1234567890",
+        isOnline: true,
+        isBanned: false,
+        isWhitelisted: false,
+        lastLogin: new Date().getTime().toString(),
+        isOp: false,
+        opLevel: 0,
+        bypassesPlayerLimit: false,
+      },
+      {
+        name: "Jane Doe",
+        uuid: "1234567891",
+        isOnline: false,
+        isBanned: true,
+        isWhitelisted: false,
+        lastLogin: new Date().getTime().toString(),
+        isOp: false,
+        opLevel: 0,
+        bypassesPlayerLimit: false,
+      },
+      {
+        name: "Alice Doe",
+        uuid: "1234567892",
+        isOnline: true,
+        isBanned: false,
+        isWhitelisted: true,
+        lastLogin: new Date().getTime().toString(),
+        isOp: false,
+        opLevel: 0,
+        bypassesPlayerLimit: false,
+      },
+      {
+        name: "Bob Doe",
+        uuid: "1234567893",
+        isOnline: false,
+        isBanned: false,
+        isWhitelisted: false,
+        lastLogin: new Date().getTime().toString(),
+        isOp: false,
+        opLevel: 0,
+        bypassesPlayerLimit: false,
+      },
+      {
+        name: "Charlie Doe",
+        uuid: "1234567894",
+        isOnline: true,
+        isBanned: false,
+        isWhitelisted: false,
+        lastLogin: new Date().getTime().toString(),
+        isOp: false,
+        opLevel: 0,
+        bypassesPlayerLimit: false,
+      },
+    ];
+    // setPlayers(samplePlayers);
     setPlayers(response.data.players);
   };
   const fetchProperties = async () => {

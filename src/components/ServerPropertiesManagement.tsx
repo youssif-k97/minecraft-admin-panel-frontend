@@ -18,8 +18,10 @@ import {
   Typography,
   Tooltip,
   IconButton,
+  InputAdornment,
 } from "@mui/material";
 import InfoIcon from "@mui/icons-material/Info";
+import SearchIcon from "@mui/icons-material/Search";
 import { ServerProperty } from "../types";
 import { SERVER_PROPERTY_DEFINITIONS } from "../config/serverPropertyDefinitions";
 
@@ -38,20 +40,37 @@ export const ServerPropertiesManagement: React.FC<
   >({});
   const [openConfirmDialog, setOpenConfirmDialog] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
 
-  const { importantProperties, additionalProperties } = useMemo(() => {
-    const allProperties = Object.entries(properties).map(([key, value]) => ({
-      key,
-      value,
-      type: "text" as const,
-      ...(SERVER_PROPERTY_DEFINITIONS[key] || {}),
-    }));
+  const { importantProperties, additionalProperties, filteredProperties } =
+    useMemo(() => {
+      const allProperties = Object.entries(properties).map(([key, value]) => ({
+        key,
+        value,
+        type: "text" as const,
+        ...(SERVER_PROPERTY_DEFINITIONS[key] || {}),
+      }));
 
-    return {
-      importantProperties: allProperties.filter((prop) => prop.important),
-      additionalProperties: allProperties.filter((prop) => !prop.important),
-    };
-  }, [properties]);
+      // Filter properties based on search term
+      const filtered =
+        searchTerm.trim() !== ""
+          ? allProperties.filter((prop) => {
+              const searchLower = searchTerm.toLowerCase();
+              const keyMatch = prop.key.toLowerCase().includes(searchLower);
+              const labelMatch =
+                prop.label?.toLowerCase().includes(searchLower) || false;
+              const descMatch =
+                prop.description?.toLowerCase().includes(searchLower) || false;
+              return keyMatch || labelMatch || descMatch;
+            })
+          : [];
+
+      return {
+        importantProperties: allProperties.filter((prop) => prop.important),
+        additionalProperties: allProperties.filter((prop) => !prop.important),
+        filteredProperties: filtered,
+      };
+    }, [properties, searchTerm]);
 
   const handlePropertyChange = (key: string, value: string) => {
     setModifiedProperties((prev) => ({
@@ -177,41 +196,90 @@ export const ServerPropertiesManagement: React.FC<
         </Alert>
       )}
 
-      <Box sx={{ flex: 1, overflowY: "auto", pr: 2 }}>
-        <Typography variant="h6" gutterBottom>
-          Main Properties
-        </Typography>
-        <Divider sx={{ my: 1 }} />
-        <Box sx={{ display: "flex", flexDirection: "column", gap: 2, mb: 4 }}>
-          {importantProperties.map((property) => (
-            <Box key={property.key}>{renderPropertyInput(property)}</Box>
-          ))}
-        </Box>
+      <Box sx={{ mb: 2 }}>
+        <TextField
+          fullWidth
+          placeholder="Search properties..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          variant="outlined"
+          InputProps={{
+            startAdornment: (
+              <InputAdornment position="start">
+                <SearchIcon />
+              </InputAdornment>
+            ),
+          }}
+        />
+      </Box>
 
-        {showAll && (
+      <Box sx={{ flex: 1, overflowY: "auto", pr: 2 }}>
+        {searchTerm.trim() !== "" ? (
+          // Show search results
           <>
-            <Divider sx={{ my: 4 }} />
             <Typography variant="h6" gutterBottom>
-              Additional Properties
+              Search Results ({filteredProperties.length})
             </Typography>
             <Divider sx={{ my: 1 }} />
-            <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
-              {additionalProperties.map((property) => (
+            {filteredProperties.length > 0 ? (
+              <Box
+                sx={{ display: "flex", flexDirection: "column", gap: 2, mb: 4 }}
+              >
+                {filteredProperties.map((property) => (
+                  <Box key={property.key}>{renderPropertyInput(property)}</Box>
+                ))}
+              </Box>
+            ) : (
+              <Typography variant="body2" color="text.secondary" sx={{ py: 2 }}>
+                No properties match your search.
+              </Typography>
+            )}
+          </>
+        ) : (
+          // Show regular view when not searching
+          <>
+            <Typography variant="h6" gutterBottom>
+              Main Properties
+            </Typography>
+            <Divider sx={{ my: 1 }} />
+            <Box
+              sx={{ display: "flex", flexDirection: "column", gap: 2, mb: 4 }}
+            >
+              {importantProperties.map((property) => (
                 <Box key={property.key}>{renderPropertyInput(property)}</Box>
               ))}
             </Box>
+
+            {showAll && (
+              <>
+                <Divider sx={{ my: 4 }} />
+                <Typography variant="h6" gutterBottom>
+                  Additional Properties
+                </Typography>
+                <Divider sx={{ my: 1 }} />
+                <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                  {additionalProperties.map((property) => (
+                    <Box key={property.key}>
+                      {renderPropertyInput(property)}
+                    </Box>
+                  ))}
+                </Box>
+              </>
+            )}
           </>
         )}
       </Box>
 
       <Box sx={{ mt: 3, display: "flex", gap: 2 }}>
-        <Button
-          variant="outlined"
-          onClick={() => setShowAll(!showAll)}
-          className="minecraft-btn"
-        >
-          {showAll ? "Show Less" : "Show More"}
-        </Button>
+        {searchTerm.trim() === "" && (
+          <Button
+            variant="outlined"
+            onClick={() => setShowAll(!showAll)}
+            className="minecraft-btn"
+          >
+            {showAll ? "Show Less" : "Show More"}
+          </Button>
+        )}
 
         <Button
           variant="contained"

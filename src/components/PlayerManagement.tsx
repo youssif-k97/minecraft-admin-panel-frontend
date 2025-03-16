@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Player } from "../types";
+import { Player, PlayerBanKick, PlayerOp } from "../types";
 import {
   Box,
   List,
@@ -28,28 +28,49 @@ import FiberManualRecordIcon from "@mui/icons-material/FiberManualRecord";
 import PersonIcon from "@mui/icons-material/Person";
 import BlockIcon from "@mui/icons-material/Block";
 import PlaylistAddCheckIcon from "@mui/icons-material/PlaylistAddCheck";
+import AdminPanelSettingsIcon from "@mui/icons-material/AdminPanelSettings";
 import Grid from "@mui/material/Grid2";
 
 interface PlayerManagementProps {
   worldId: string;
+  worldActive: boolean;
   players: Player[];
-  onPlayerChange: (
-    username: string,
-    listType: "whitelist" | "blacklist"
-  ) => Promise<void>;
+  isWhitelistEnabled: boolean;
+  onPlayerWhitelist: (player: Player) => Promise<void>;
+  onPlayerBan: (player: PlayerBanKick) => Promise<void>;
+  onPlayerKick: (player: PlayerBanKick) => Promise<void>;
+  onPlayerOp: (player: PlayerOp) => Promise<void>;
+  onPlayerRemoveOp: (player: PlayerOp) => Promise<void>;
+  onToggleWhitelist: (enabled: boolean) => Promise<void>;
+  onPlayerPardon: (player: Player) => Promise<void>;
 }
 
 export const PlayerManagement: React.FC<PlayerManagementProps> = ({
   worldId,
+  worldActive,
   players,
-  onPlayerChange,
+  isWhitelistEnabled,
+  onPlayerWhitelist,
+  onPlayerBan,
+  onPlayerKick,
+  onPlayerOp,
+  onPlayerRemoveOp,
+  onToggleWhitelist,
+  onPlayerPardon,
 }) => {
   const [selectedPlayer, setSelectedPlayer] = useState<Player | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [banReason, setBanReason] = useState("");
+  const [reason, setReason] = useState("");
   const [opLevel, setOpLevel] = useState<number>(0);
+  const [isOp, setIsOp] = useState<boolean>(false);
   const [bypassLimit, setBypassLimit] = useState(false);
-  const [whitelistEnabled, setWhitelistEnabled] = useState(false); // This would come from server properties
+  const [whitelistEnabled, setWhitelistEnabled] = useState(isWhitelistEnabled);
+  const [isWhitelistLoading, setIsWhitelistLoading] = useState(false);
+
+  // Update local state when prop changes
+  useEffect(() => {
+    setWhitelistEnabled(isWhitelistEnabled);
+  }, [isWhitelistEnabled]);
 
   const playersArray = Array.isArray(players) ? players : [];
   console.log(playersArray);
@@ -58,10 +79,12 @@ export const PlayerManagement: React.FC<PlayerManagementProps> = ({
   const whitelistedPlayers = playersArray.filter(
     (player) => player.isWhitelisted
   );
+  const opPlayers = playersArray.filter((player) => player.isOp);
 
   const handlePlayerClick = (player: Player) => {
     setSelectedPlayer(player);
     setOpLevel(player.opLevel);
+    setIsOp(player.isOp);
     setBypassLimit(player.bypassesPlayerLimit);
     setDialogOpen(true);
   };
@@ -69,42 +92,81 @@ export const PlayerManagement: React.FC<PlayerManagementProps> = ({
   const handleCloseDialog = () => {
     setDialogOpen(false);
     setSelectedPlayer(null);
-    setBanReason("");
+    setReason("");
+    setOpLevel(0);
+    setIsOp(false);
+    setBypassLimit(false);
   };
 
   const handleBanPlayer = async () => {
     if (selectedPlayer) {
-      // Call API to ban player
-      await onPlayerChange(selectedPlayer.name, "blacklist");
+      const playerBanKick: PlayerBanKick = {
+        uuid: selectedPlayer.uuid,
+        name: selectedPlayer.name,
+        reason: reason,
+      };
+      await onPlayerBan(playerBanKick);
       handleCloseDialog();
     }
   };
 
   const handleKickPlayer = async () => {
     if (selectedPlayer) {
-      // Call API to kick player
-      // This would need a new API endpoint
+      const playerBanKick: PlayerBanKick = {
+        uuid: selectedPlayer.uuid,
+        name: selectedPlayer.name,
+        reason: reason,
+      };
+      await onPlayerKick(playerBanKick);
       handleCloseDialog();
     }
   };
 
   const handleOpChange = async () => {
     if (selectedPlayer) {
-      // Call API to change op status
-      // This would need a new API endpoint
+      if (isOp) {
+        const player: PlayerOp = {
+          uuid: selectedPlayer.uuid,
+          name: selectedPlayer.name,
+          op: true,
+          level: opLevel,
+          bypassesPlayerLimit: bypassLimit,
+        };
+        await onPlayerOp(player);
+      } else {
+        const player: PlayerOp = {
+          uuid: selectedPlayer.uuid,
+          name: selectedPlayer.name,
+          op: false,
+          level: 0,
+          bypassesPlayerLimit: false,
+        };
+        await onPlayerRemoveOp(player);
+      }
       handleCloseDialog();
     }
   };
 
   const handleWhitelistToggle = async (player: Player) => {
-    await onPlayerChange(player.name, "whitelist");
+    const selectedPlayer: Player = {
+      ...player,
+      isWhitelisted: !player.isWhitelisted,
+    };
+    setIsWhitelistLoading(true);
+    try {
+      await onPlayerWhitelist(selectedPlayer);
+    } catch (error) {
+      console.error("Failed to update player whitelist status:", error);
+    } finally {
+      setIsWhitelistLoading(false);
+    }
   };
 
   return (
     <Box sx={{ height: "100%", display: "flex", flexDirection: "column" }}>
       <Grid container spacing={2} sx={{ height: "100%", flexGrow: 1 }}>
-        {/* All Players Card - Full width and 50% height */}
-        <Grid size={{ xs: 12 }} sx={{ height: "50%" }}>
+        {/* First row - split between All Players and OP Players - 50% height */}
+        <Grid size={{ xs: 12, md: 6 }} sx={{ height: "50%" }}>
           <Card
             className="minecraft-card"
             sx={{ height: "100%", display: "flex", flexDirection: "column" }}
@@ -161,6 +223,70 @@ export const PlayerManagement: React.FC<PlayerManagementProps> = ({
           </Card>
         </Grid>
 
+        <Grid size={{ xs: 12, md: 6 }} sx={{ height: "50%" }}>
+          <Card
+            className="minecraft-card"
+            sx={{ height: "100%", display: "flex", flexDirection: "column" }}
+          >
+            <CardHeader
+              title="Operator Players"
+              avatar={<AdminPanelSettingsIcon />}
+              subheader={`${opPlayers.length} operators`}
+            />
+            <CardContent
+              sx={{
+                flexGrow: 1,
+                overflow: "hidden",
+                display: "flex",
+                flexDirection: "column",
+              }}
+            >
+              <List sx={{ flexGrow: 1, overflow: "auto", padding: 0 }}>
+                {opPlayers.length > 0 ? (
+                  opPlayers.map((player) => (
+                    <ListItem
+                      key={player.uuid}
+                      onClick={() => handlePlayerClick(player)}
+                      sx={{
+                        cursor: "pointer",
+                        borderRadius: "4px",
+                        padding: "8px 16px",
+                        "&:hover": {
+                          backgroundColor: "rgba(255, 255, 255, 0.08)",
+                        },
+                      }}
+                    >
+                      <ListItemText
+                        primary={
+                          <Typography variant="subtitle1" fontWeight="bold">
+                            {player.name}
+                          </Typography>
+                        }
+                        secondary={`OP Level: ${player.opLevel}`}
+                      />
+                      {player.isOnline && (
+                        <FiberManualRecordIcon
+                          fontSize="small"
+                          color="success"
+                          sx={{ ml: 1 }}
+                        />
+                      )}
+                    </ListItem>
+                  ))
+                ) : (
+                  <Typography
+                    variant="body2"
+                    color="text.secondary"
+                    sx={{ p: 1 }}
+                  >
+                    No operator players
+                  </Typography>
+                )}
+              </List>
+            </CardContent>
+          </Card>
+        </Grid>
+
         {/* Second row - split between Banned Players and Whitelist - 50% height */}
         <Grid size={{ xs: 12, md: 6 }} sx={{ height: "50%" }}>
           <Card
@@ -194,6 +320,21 @@ export const PlayerManagement: React.FC<PlayerManagementProps> = ({
                           backgroundColor: "rgba(255, 255, 255, 0.08)",
                         },
                       }}
+                      secondaryAction={
+                        <Button
+                          variant="outlined"
+                          color="primary"
+                          size="small"
+                          className="minecraft-btn"
+                          disabled={!worldActive}
+                          onClick={(e) => {
+                            e.stopPropagation(); // Prevent opening the player dialog
+                            onPlayerPardon(player);
+                          }}
+                        >
+                          Pardon
+                        </Button>
+                      }
                     >
                       <ListItemText
                         primary={
@@ -229,8 +370,29 @@ export const PlayerManagement: React.FC<PlayerManagementProps> = ({
               action={
                 <Switch
                   checked={whitelistEnabled}
-                  onChange={(e) => setWhitelistEnabled(e.target.checked)}
+                  disabled={isWhitelistLoading}
+                  onChange={async (e) => {
+                    const newState = e.target.checked;
+                    setWhitelistEnabled(newState);
+                    setIsWhitelistLoading(true);
+                    try {
+                      await onToggleWhitelist(newState);
+                    } catch (error) {
+                      console.error("Failed to toggle whitelist:", error);
+                      // Revert the local state if the server update fails
+                      setWhitelistEnabled(!newState);
+                    } finally {
+                      setIsWhitelistLoading(false);
+                    }
+                  }}
                 />
+              }
+              subheader={
+                isWhitelistLoading
+                  ? "Updating whitelist..."
+                  : whitelistEnabled
+                  ? `${whitelistedPlayers.length} of ${playersArray.length} players whitelisted`
+                  : "Whitelist is disabled"
               }
             />
             <CardContent
@@ -243,8 +405,8 @@ export const PlayerManagement: React.FC<PlayerManagementProps> = ({
             >
               {whitelistEnabled ? (
                 <List sx={{ flexGrow: 1, overflow: "auto", padding: 0 }}>
-                  {whitelistedPlayers.length > 0 ? (
-                    whitelistedPlayers.map((player) => (
+                  {playersArray.length > 0 ? (
+                    playersArray.map((player) => (
                       <ListItem
                         key={player.uuid}
                         sx={{ padding: "8px 16px" }}
@@ -252,6 +414,7 @@ export const PlayerManagement: React.FC<PlayerManagementProps> = ({
                           <Switch
                             edge="end"
                             checked={player.isWhitelisted}
+                            disabled={isWhitelistLoading}
                             onChange={() => handleWhitelistToggle(player)}
                           />
                         }
@@ -271,7 +434,7 @@ export const PlayerManagement: React.FC<PlayerManagementProps> = ({
                       color="text.secondary"
                       sx={{ p: 1 }}
                     >
-                      No players on whitelist
+                      No players available
                     </Typography>
                   )}
                 </List>
@@ -334,34 +497,51 @@ export const PlayerManagement: React.FC<PlayerManagementProps> = ({
               Player Actions
             </Typography>
 
-            {selectedPlayer?.isOnline && (
-              <Button
-                variant="outlined"
-                color="warning"
-                sx={{ mr: 1, mb: 2 }}
-                onClick={handleKickPlayer}
-                className="minecraft-btn"
-              >
-                Kick Player
-              </Button>
-            )}
-
             <Box sx={{ mb: 3 }}>
               <TextField
                 label="Ban Reason"
                 fullWidth
-                value={banReason}
-                onChange={(e) => setBanReason(e.target.value)}
+                value={reason}
+                onChange={(e) => setReason(e.target.value)}
                 sx={{ mb: 1 }}
+                disabled={selectedPlayer?.isBanned}
               />
               <Button
                 variant="outlined"
                 color="error"
                 onClick={handleBanPlayer}
-                disabled={selectedPlayer?.isBanned}
+                disabled={selectedPlayer?.isBanned || !worldActive}
                 className="minecraft-btn"
+                sx={{ mr: 1, mb: 2 }}
               >
                 {selectedPlayer?.isBanned ? "Player is Banned" : "Ban Player"}
+              </Button>
+              {selectedPlayer?.isBanned && (
+                <Button
+                  variant="outlined"
+                  color="primary"
+                  disabled={!worldActive}
+                  onClick={() => {
+                    if (selectedPlayer) {
+                      onPlayerPardon(selectedPlayer);
+                      handleCloseDialog();
+                    }
+                  }}
+                  className="minecraft-btn"
+                  sx={{ mr: 1, mb: 2 }}
+                >
+                  Pardon Player
+                </Button>
+              )}
+              <Button
+                variant="outlined"
+                color="warning"
+                disabled={!selectedPlayer?.isOnline || !worldActive}
+                onClick={handleKickPlayer}
+                className="minecraft-btn"
+                sx={{ mr: 1, mb: 2 }}
+              >
+                Kick Player
               </Button>
             </Box>
 
@@ -374,14 +554,20 @@ export const PlayerManagement: React.FC<PlayerManagementProps> = ({
             <FormControlLabel
               control={
                 <Switch
-                  checked={opLevel > 0}
-                  onChange={(e) => setOpLevel(e.target.checked ? 1 : 0)}
+                  checked={isOp}
+                  onChange={(e) => {
+                    setIsOp(e.target.checked);
+                    if (e.target.checked && opLevel === 0) {
+                      setOpLevel(1);
+                    }
+                  }}
+                  disabled={selectedPlayer?.isBanned || !worldActive}
                 />
               }
               label="Operator"
             />
 
-            {opLevel > 0 && (
+            {isOp && (
               <>
                 <FormControl fullWidth margin="normal">
                   <InputLabel>Operator Level</InputLabel>
@@ -390,6 +576,7 @@ export const PlayerManagement: React.FC<PlayerManagementProps> = ({
                     label="Operator Level"
                     onChange={(e) => setOpLevel(Number(e.target.value))}
                   >
+                    <MenuItem value={0}>Level 0</MenuItem>
                     <MenuItem value={1}>Level 1</MenuItem>
                     <MenuItem value={2}>Level 2</MenuItem>
                     <MenuItem value={3}>Level 3</MenuItem>
@@ -415,6 +602,7 @@ export const PlayerManagement: React.FC<PlayerManagementProps> = ({
           <Button
             onClick={handleOpChange}
             variant="contained"
+            disabled={!worldActive}
             color="primary"
             className="minecraft-btn"
           >

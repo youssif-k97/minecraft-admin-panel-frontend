@@ -40,6 +40,19 @@ export interface Player {
   opLevel: number;
   bypassesPlayerLimit: boolean;
 }
+export interface PlayerBanKick {
+  uuid: string;
+  name: string;
+  reason: string;
+}
+
+export interface PlayerOp {
+  uuid: string;
+  name: string;
+  op: boolean;
+  level: number;
+  bypassesPlayerLimit: boolean;
+}
 
 export interface ServerProperty {
   key: string;
@@ -55,4 +68,12 @@ export interface ServerProperty {
 export interface Datapack {
   name: string;
   uploadDate: string;
+}
+
+export interface LogMessage {
+  timestamp: string;
+  level: "INFO" | "WARN" | "ERROR";
+  source: string;
+  message: string;
+  raw: string;
 }

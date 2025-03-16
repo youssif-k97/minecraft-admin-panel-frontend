@@ -1,8 +1,15 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Box, Tabs, Tab, Alert, Snackbar } from "@mui/material";
 import { useNavigate, useParams } from "react-router-dom";
 import axios from "axios";
-import { Datapack, MinecraftWorld, Player } from "../types";
+import {
+  Datapack,
+  MinecraftWorld,
+  Player,
+  PlayerBanKick,
+  PlayerOp,
+  LogMessage,
+} from "../types";
 import { DatapackManagement } from "./DatapackManagement";
 import { ServerPropertiesManagement } from "./ServerPropertiesManagement";
 import { ServerControlPanel } from "./ServerControlManagement";
@@ -26,7 +33,138 @@ export const WorldManagement = () => {
     message: string;
     severity: "info" | "success" | "error";
   }>({ show: false, message: "", severity: "info" });
+  // Add logs state and websocket related state
+  const [logs, setLogs] = useState<LogMessage[]>([]);
+  const [wsStatus, setWsStatus] = useState<
+    "connecting" | "connected" | "disconnected"
+  >("disconnected");
+  const wsRef = useRef<WebSocket | null>(null);
   const navigate = useNavigate();
+
+  // Parse log message function
+  const parseLogMessage = (rawLog: string): LogMessage | null => {
+    // Minecraft log format: [HH:mm:ss] [Source/LEVEL]: Message
+    const logRegex = /\[([\d:]+)\] \[([^\/]+)\/([^\]]+)\]: (.+)/;
+    const match = rawLog.match(logRegex);
+
+    if (!match) {
+      return null;
+    }
+
+    const [, timestamp, source, level, message] = match;
+
+    return {
+      timestamp,
+      source,
+      level: level as LogMessage["level"],
+      message,
+      raw: rawLog,
+    };
+  };
+
+  // WebSocket connection function
+  const connectWebSocket = () => {
+    // Remove the check for world?.isActive to allow connection during server startup
+    if (!worldId) return;
+
+    if (wsRef.current) {
+      wsRef.current.close();
+      wsRef.current = null;
+    }
+
+    const wsUrl = `${import.meta.env.VITE_AGENT_URL.replace(
+      "http",
+      "ws"
+    )}/ws/logs/${worldId}`;
+    setWsStatus("connecting");
+
+    const ws = new WebSocket(wsUrl);
+    wsRef.current = ws;
+
+    ws.onopen = () => {
+      setWsStatus("connected");
+      console.log("WebSocket connected for logs");
+    };
+
+    ws.onmessage = (event) => {
+      const rawLog = event.data;
+      const parsedLog = parseLogMessage(rawLog);
+
+      if (parsedLog) {
+        setLogs((prev) => {
+          const isDuplicate = prev.some(
+            (existingLog) => existingLog.raw === rawLog
+          );
+
+          if (isDuplicate) {
+            return prev;
+          }
+
+          return [...prev, parsedLog].slice(-500); // Keep last 500 messages
+        });
+      } else {
+        // Handle unparseable logs by creating a basic INFO message
+        const basicLog: LogMessage = {
+          timestamp: new Date().toLocaleTimeString(),
+          source: "Unknown",
+          level: "INFO",
+          message: rawLog,
+          raw: rawLog,
+        };
+        setLogs((prev) => {
+          const isDuplicate = prev.some(
+            (existingLog) => existingLog.raw === rawLog
+          );
+
+          if (isDuplicate) {
+            return prev;
+          }
+
+          return [...prev, basicLog].slice(-500);
+        });
+      }
+    };
+
+    ws.onclose = () => {
+      setWsStatus("disconnected");
+      wsRef.current = null;
+      console.log("WebSocket disconnected");
+
+      // Attempt to reconnect after 2 seconds if server is active or toggling
+      if (world?.isActive || isToggling) {
+        console.log("Attempting to reconnect in 2 seconds...");
+        setTimeout(connectWebSocket, 2000);
+      }
+    };
+
+    ws.onerror = (error) => {
+      console.error("WebSocket error:", error);
+      setWsStatus("disconnected");
+      // Don't close the connection here, let the onclose handler handle reconnection
+    };
+  };
+
+  // Manage WebSocket connection based on world active status
+  useEffect(() => {
+    // Connect if server is active or in the process of toggling on
+    if ((world?.isActive || isToggling) && !wsRef.current) {
+      console.log("Connecting websocket due to active state change");
+      connectWebSocket();
+    } else if (!world?.isActive && !isToggling && wsRef.current) {
+      console.log("Disconnecting websocket due to inactive state");
+      wsRef.current.close();
+      wsRef.current = null;
+      setWsStatus("disconnected");
+    }
+
+    return () => {
+      if (wsRef.current) {
+        console.log("Cleaning up websocket on component unmount");
+        wsRef.current.close();
+        wsRef.current = null;
+      }
+    };
+  }, [world?.isActive, isToggling, worldId]);
 
   const fetchWorlds = async () => {
     const [worldRes] = await Promise.all([
@@ -129,6 +267,20 @@ export const WorldManagement = () => {
     setIsToggling(true);
     try {
       const action = world?.isActive ? "stop" : "start";
+
+      // If we're starting the server, connect to the websocket immediately
+      // to capture startup messages
+      if (action === "start") {
+        // Set the world as active temporarily to allow websocket connection
+        setWorld((prev) => (prev ? { ...prev, isActive: true } : null));
+        // Connect to websocket immediately to capture startup logs
+        connectWebSocket();
+      } else if (action === "stop" && wsRef.current) {
+        // If stopping, close the websocket
+        wsRef.current.close();
+        wsRef.current = null;
+      }
+
       await axios.post(
         `${
           import.meta.env.VITE_API_URL
@@ -141,10 +293,12 @@ export const WorldManagement = () => {
         message: `World is ${action}ing...`,
         severity: "info",
       });
+
       setTimeout(() => {
-        setWorld((prev) =>
-          prev ? { ...prev, isActive: !prev.isActive } : null
-        );
+        if (action === "stop") {
+          setWorld((prev) => (prev ? { ...prev, isActive: false } : null));
+        }
+        // For start, we've already set isActive to true
         setAlert({
           show: true,
           message: `World ${action}ed successfully`,
@@ -158,6 +312,14 @@ export const WorldManagement = () => {
         message: "Failed to toggle server state",
         severity: "error",
       });
+      // If there was an error starting, reset the active state
+      if (!world?.isActive) {
+        setWorld((prev) => (prev ? { ...prev, isActive: false } : null));
+        if (wsRef.current) {
+          wsRef.current.close();
+          wsRef.current = null;
+        }
+      }
       setIsToggling(false);
     }
   };
@@ -222,22 +384,96 @@ export const WorldManagement = () => {
     );
   };
 
-  const handlePlayerListChange = async (
-    username: string,
-    listType: "whitelist" | "blacklist"
-  ) => {
+  const handlePlayerWhitelist = async (player: Player) => {
     await axios.post(
       `${
         import.meta.env.VITE_API_URL
-      }/worlds/${worldId}/players/${username}/${listType}`
+      }/api/minecraft/worlds/${worldId}/whitelistPlayer`,
+      { player }
     );
     // Refresh players list
     const response = await axios.get(
-      `${import.meta.env.VITE_API_URL}/worlds/${worldId}/players`
+      `${import.meta.env.VITE_API_URL}/api/minecraft/worlds/${worldId}/players`
     );
-    setPlayers(response.data);
+    setPlayers(response.data.players);
   };
 
+  const handlePlayerBan = async (player: PlayerBanKick) => {
+    await axios.post(
+      `${
+        import.meta.env.VITE_API_URL
+      }/api/minecraft/worlds/${worldId}/banPlayer`,
+      { player }
+    );
+    // Refresh players list
+    const response = await axios.get(
+      `${import.meta.env.VITE_API_URL}/api/minecraft/worlds/${worldId}/players`
+    );
+    setPlayers(response.data.players);
+  };
+
+  const handlePlayerPardon = async (player: Player) => {
+    try {
+      // Send a raw RCON command to pardon the player
+      await axios.post(
+        `${
+          import.meta.env.VITE_API_URL
+        }/api/minecraft/worlds/${worldId}/raw-rcon-command`,
+        { command: `pardon ${player.name}` }
+      );
+      // Refresh players list
+      const response = await axios.get(
+        `${
+          import.meta.env.VITE_API_URL
+        }/api/minecraft/worlds/${worldId}/players`
+      );
+      setPlayers(response.data.players);
+    } catch (error) {
+      console.error("Failed to pardon player:", error);
+    }
+  };
+
+  const handlePlayerKick = async (player: PlayerBanKick) => {
+    await axios.post(
+      `${
+        import.meta.env.VITE_API_URL
+      }/api/minecraft/worlds/${worldId}/kickPlayer`,
+      { player }
+    );
+    // Refresh players list
+    const response = await axios.get(
+      `${import.meta.env.VITE_API_URL}/api/minecraft/worlds/${worldId}/players`
+    );
+    setPlayers(response.data.players);
+  };
+
+  const handlePlayerOp = async (player: PlayerOp) => {
+    await axios.post(
+      `${
+        import.meta.env.VITE_API_URL
+      }/api/minecraft/worlds/${worldId}/opPlayer`,
+      { player }
+    );
+    // Refresh players list
+    const response = await axios.get(
+      `${import.meta.env.VITE_API_URL}/api/minecraft/worlds/${worldId}/players`
+    );
+    setPlayers(response.data.players);
+  };
+
+  const handlePlayerRemoveOp = async (player: PlayerOp) => {
+    await axios.post(
+      `${
+        import.meta.env.VITE_API_URL
+      }/api/minecraft/worlds/${worldId}/removeOpPlayer`,
+      { player }
+    );
+    // Refresh players list
+    const response = await axios.get(
+      `${import.meta.env.VITE_API_URL}/api/minecraft/worlds/${worldId}/players`
+    );
+    setPlayers(response.data.players);
+  };
   const handlePropertyChange = async (properties: Record<string, string>) => {
     console.log("Updating properties:", properties);
     await axios.put(
@@ -262,6 +498,9 @@ export const WorldManagement = () => {
       { command }
     );
     return response.data;
+  };
+  const handleToggleWhitelist = async (enabled: boolean) => {
+    handlePropertyChange({ "white-list": enabled.toString() });
   };
   return (
     <Box sx={{ height: "100vh", padding: "20px" }}>
@@ -323,13 +562,23 @@ export const WorldManagement = () => {
             onDownloadWorld={handleDownloadWorld}
             onBackupWorld={handleBackupWorld}
             onSendRconCommand={handleRconCommand}
+            logs={logs}
+            wsStatus={wsStatus}
           />
         </TabPanel>
         <TabPanel value={value} index={1}>
           <PlayerManagement
             worldId={worldId!}
+            worldActive={world?.isActive || false}
             players={players}
-            onPlayerChange={handlePlayerListChange}
+            isWhitelistEnabled={properties["white-list"] === "true"}
+            onPlayerWhitelist={handlePlayerWhitelist}
+            onPlayerBan={handlePlayerBan}
+            onPlayerKick={handlePlayerKick}
+            onPlayerOp={handlePlayerOp}
+            onPlayerRemoveOp={handlePlayerRemoveOp}
+            onToggleWhitelist={handleToggleWhitelist}
+            onPlayerPardon={handlePlayerPardon}
           />
         </TabPanel>
         <TabPanel value={value} index={2}>

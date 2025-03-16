@@ -27,6 +27,7 @@ import {
   Terminal,
   Send,
 } from "@mui/icons-material";
+import { LogMessage } from "../types"; // Import LogMessage from types
 
 interface ServerControlPanelProps {
   worldId: string;
@@ -44,14 +45,8 @@ interface ServerControlPanelProps {
   onDownloadWorld: () => Promise<void>;
   onBackupWorld: () => Promise<void>;
   onSendRconCommand?: (command: string) => Promise<string>; // New prop for RCON commands
-}
-
-interface LogMessage {
-  timestamp: string;
-  level: "INFO" | "WARN" | "ERROR";
-  source: string;
-  message: string;
-  raw: string;
+  logs: LogMessage[]; // Added logs prop
+  wsStatus: "connecting" | "connected" | "disconnected"; // Added wsStatus prop
 }
 
 export const ServerControlPanel: React.FC<ServerControlPanelProps> = ({
@@ -67,6 +62,8 @@ export const ServerControlPanel: React.FC<ServerControlPanelProps> = ({
   onDownloadWorld,
   onBackupWorld,
   onSendRconCommand,
+  logs,
+  wsStatus,
 }) => {
   const [openPortDialog, setOpenPortDialog] = useState(false);
   const [openRamDialog, setOpenRamDialog] = useState(false);
@@ -77,104 +74,13 @@ export const ServerControlPanel: React.FC<ServerControlPanelProps> = ({
   const [newRam, setNewRam] = useState(currentRam);
   const [loading, setLoading] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [logs, setLogs] = useState<LogMessage[]>([]);
-  const [wsStatus, setWsStatus] = useState<
-    "connecting" | "connected" | "disconnected"
-  >("disconnected");
 
-  const wsRef = useRef<WebSocket | null>(null);
   const logsEndRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!wsRef.current) {
-      connectWebSocket();
-    }
-
-    return () => {
-      if (wsRef.current) {
-        wsRef.current.close();
-        wsRef.current = null;
-      }
-    };
-  }, [isActive, worldId]);
 
   useEffect(() => {
     // Scroll to bottom when new logs arrive
     logsEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [logs]);
-
-  const connectWebSocket = () => {
-    if (wsRef.current) {
-      wsRef.current.close();
-      wsRef.current = null;
-    }
-    const wsUrl = `${import.meta.env.VITE_AGENT_URL.replace(
-      "http",
-      "ws"
-    )}/ws/logs/${worldId}`;
-    setWsStatus("connecting");
-
-    const ws = new WebSocket(wsUrl);
-    wsRef.current = ws;
-
-    ws.onopen = () => {
-      setWsStatus("connected");
-      setError(null);
-    };
-
-    ws.onmessage = (event) => {
-      const rawLog = event.data;
-      const parsedLog = parseLogMessage(rawLog);
-
-      if (parsedLog) {
-        setLogs((prev) => {
-          const isDuplicate = prev.some(
-            (existingLog) => existingLog.raw === rawLog
-          );
-
-          if (isDuplicate) {
-            return prev;
-          }
-
-          return [...prev, parsedLog].slice(-500); // Keep last 500 messages
-        });
-      } else {
-        // Handle unparseable logs by creating a basic INFO message
-        const basicLog: LogMessage = {
-          timestamp: new Date().toLocaleTimeString(),
-          source: "Unknown",
-          level: "INFO",
-          message: rawLog,
-          raw: rawLog,
-        };
-        setLogs((prev) => {
-          const isDuplicate = prev.some(
-            (existingLog) => existingLog.raw === rawLog
-          );
-
-          if (isDuplicate) {
-            return prev;
-          }
-
-          return [...prev, basicLog].slice(-500);
-        });
-      }
-    };
-
-    ws.onclose = () => {
-      setWsStatus("disconnected");
-      wsRef.current = null;
-      // Attempt to reconnect after 5 seconds if server is still active
-      if (isActive) {
-        setTimeout(connectWebSocket, 5000);
-      }
-    };
-
-    ws.onerror = (err) => {
-      setError("WebSocket connection error. Retrying...");
-      ws.close();
-    };
-  };
 
   const getLogColor = (level: LogMessage["level"]) => {
     switch (level) {
@@ -185,26 +91,6 @@ export const ServerControlPanel: React.FC<ServerControlPanelProps> = ({
       default:
         return "text-gray-200";
     }
-  };
-
-  const parseLogMessage = (rawLog: string): LogMessage | null => {
-    // Minecraft log format: [HH:mm:ss] [Source/LEVEL]: Message
-    const logRegex = /\[([\d:]+)\] \[([^\/]+)\/([^\]]+)\]: (.+)/;
-    const match = rawLog.match(logRegex);
-
-    if (!match) {
-      return null;
-    }
-
-    const [, timestamp, source, level, message] = match;
-
-    return {
-      timestamp,
-      source,
-      level: level as LogMessage["level"],
-      message,
-      raw: rawLog,
-    };
   };
 
   const handleAction = async (

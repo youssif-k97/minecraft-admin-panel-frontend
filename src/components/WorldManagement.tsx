@@ -64,7 +64,6 @@ export const WorldManagement = () => {
 
   // WebSocket connection function
   const connectWebSocket = () => {
-    // Remove the check for world?.isActive to allow connection during server startup
     if (!worldId) return;
 
     if (wsRef.current) {
@@ -130,7 +129,6 @@ export const WorldManagement = () => {
       wsRef.current = null;
       console.log("WebSocket disconnected");
 
-      // Attempt to reconnect after 2 seconds if server is active or toggling
       if (world?.isActive || isToggling) {
         console.log("Attempting to reconnect in 2 seconds...");
         setTimeout(connectWebSocket, 2000);
@@ -140,13 +138,10 @@ export const WorldManagement = () => {
     ws.onerror = (error) => {
       console.error("WebSocket error:", error);
       setWsStatus("disconnected");
-      // Don't close the connection here, let the onclose handler handle reconnection
     };
   };
 
-  // Manage WebSocket connection based on world active status
   useEffect(() => {
-    // Connect if server is active or in the process of toggling on
     if ((world?.isActive || isToggling) && !wsRef.current) {
       console.log("Connecting websocket due to active state change");
       connectWebSocket();
@@ -186,65 +181,6 @@ export const WorldManagement = () => {
     const response = await axios.get(
       `${import.meta.env.VITE_API_URL}/api/minecraft/worlds/${worldId}/players`
     );
-    // add some sample players to the data
-    const samplePlayers = [
-      {
-        name: "John Doe",
-        uuid: "1234567890",
-        isOnline: true,
-        isBanned: false,
-        isWhitelisted: false,
-        lastLogin: new Date().getTime().toString(),
-        isOp: false,
-        opLevel: 0,
-        bypassesPlayerLimit: false,
-      },
-      {
-        name: "Jane Doe",
-        uuid: "1234567891",
-        isOnline: false,
-        isBanned: true,
-        isWhitelisted: false,
-        lastLogin: new Date().getTime().toString(),
-        isOp: false,
-        opLevel: 0,
-        bypassesPlayerLimit: false,
-      },
-      {
-        name: "Alice Doe",
-        uuid: "1234567892",
-        isOnline: true,
-        isBanned: false,
-        isWhitelisted: true,
-        lastLogin: new Date().getTime().toString(),
-        isOp: false,
-        opLevel: 0,
-        bypassesPlayerLimit: false,
-      },
-      {
-        name: "Bob Doe",
-        uuid: "1234567893",
-        isOnline: false,
-        isBanned: false,
-        isWhitelisted: false,
-        lastLogin: new Date().getTime().toString(),
-        isOp: false,
-        opLevel: 0,
-        bypassesPlayerLimit: false,
-      },
-      {
-        name: "Charlie Doe",
-        uuid: "1234567894",
-        isOnline: true,
-        isBanned: false,
-        isWhitelisted: false,
-        lastLogin: new Date().getTime().toString(),
-        isOp: false,
-        opLevel: 0,
-        bypassesPlayerLimit: false,
-      },
-    ];
-    // setPlayers(samplePlayers);
     setPlayers(response.data.players);
   };
   const fetchProperties = async () => {
@@ -265,22 +201,16 @@ export const WorldManagement = () => {
 
   const handleServerToggle = async () => {
     setIsToggling(true);
+    const action = world?.isActive ? "stop" : "start";
+
     try {
-      const action = world?.isActive ? "stop" : "start";
+      setAlert({
+        show: true,
+        message: `World is ${action}ing...`,
+        severity: "info",
+      });
 
-      // If we're starting the server, connect to the websocket immediately
-      // to capture startup messages
-      if (action === "start") {
-        // Set the world as active temporarily to allow websocket connection
-        setWorld((prev) => (prev ? { ...prev, isActive: true } : null));
-        // Connect to websocket immediately to capture startup logs
-        connectWebSocket();
-      } else if (action === "stop" && wsRef.current) {
-        // If stopping, close the websocket
-        wsRef.current.close();
-        wsRef.current = null;
-      }
-
+      // Make the API call
       await axios.post(
         `${
           import.meta.env.VITE_API_URL
@@ -288,38 +218,38 @@ export const WorldManagement = () => {
         {},
         { timeout: 120000 }
       );
+
+      // Update state AFTER successful API call
+      setWorld((prev) =>
+        prev ? { ...prev, isActive: action === "start" } : null
+      );
+
       setAlert({
         show: true,
-        message: `World is ${action}ing...`,
-        severity: "info",
+        message: `World ${action}ed successfully`,
+        severity: "success",
       });
 
-      setTimeout(() => {
-        if (action === "stop") {
-          setWorld((prev) => (prev ? { ...prev, isActive: false } : null));
-        }
-        // For start, we've already set isActive to true
-        setAlert({
-          show: true,
-          message: `World ${action}ed successfully`,
-          severity: "success",
-        });
-        setIsToggling(false);
-      }, 3000);
-    } catch (error) {
+      // WebSocket management should be handled by the useEffect
+      // based on the updated world.isActive state
+    } catch (error: any) {
+      console.error("Server toggle error:", error);
+
       setAlert({
         show: true,
-        message: "Failed to toggle server state",
+        message: `Failed to ${action} server: ${
+          error.message || "Unknown error"
+        }`,
         severity: "error",
       });
-      // If there was an error starting, reset the active state
-      if (!world?.isActive) {
-        setWorld((prev) => (prev ? { ...prev, isActive: false } : null));
-        if (wsRef.current) {
-          wsRef.current.close();
-          wsRef.current = null;
-        }
+
+      // If start failed, explicitly close websocket connection that we opened
+      if (action === "start" && wsRef.current) {
+        wsRef.current.close();
+        wsRef.current = null;
+        setWsStatus("disconnected");
       }
+    } finally {
       setIsToggling(false);
     }
   };

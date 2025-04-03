@@ -1,6 +1,7 @@
 export interface MinecraftWorld {
   id: string;
   name: string;
+  serverVersion: string;
   isActive: boolean;
   players?: string[];
   properties?: Record<string, string>;
